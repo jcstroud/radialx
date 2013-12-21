@@ -1,0 +1,367 @@
+#! /usr/bin/env python
+
+DEBUG = False
+ 
+import sys
+import math
+import logging
+
+import Tkinter as TK
+
+if DEBUG:
+  logging.basicConfig(level=logging.DEBUG)
+
+logging.debug('importing pygmyplot')
+import pygmyplot
+logging.debug('importing yaml')
+import yaml
+logging.debug('importing numpy')
+import numpy
+logging.debug('importing phyles')
+import phyles
+
+logging.debug('importing _radialx')
+import _radialx
+
+logging.debug('importing cctbx')
+import cctbx
+
+logging.debug('importing iotbx')
+from iotbx import mtz, pdb
+
+class PowderError(Exception):
+  pass
+class GUIError(Exception):
+  pass
+
+def usage():
+  print "usage: powder config.yml"
+  sys.exit()
+  
+def plot_powder(sf, config, pltcfg, experiment, master=None,
+                                                plot=None):
+  """
+  Returns an instance of :class:`pygmyplot.MyXYPlot` with intensity per
+  detector area plotted over ``config['d_max']`` - ``config['d_min']``.
+
+  Args:
+    `sf`:
+       structure factors as a :class:`cctbx.miller.array`
+    `config`:
+       mapping object with keys of
+         - ``d_max``: maximum d-spacing in Angstroms
+         - ``d_min``: minimum d-spacing in Angstroms
+         - ``plot_bins``: number of bins
+    `experiment`:
+       mapping object with keys of
+         - ``'WAVELENGTH'``: x-ray wavelength Angstroms
+         - ``'DISTANCE'``: detector distance in mm
+    `master`:
+       Tkinter widget
+    `plot`:
+       a :class:`pygmyplot.MyPlot` to which the plot is added
+  """
+  if (master is not None) and (plot is not None):
+    msg = "Either or both of master and plot should be None."
+    raise GUIError(msg)
+
+  max_min = sf.d_max_min()
+
+  d_max = config['d_max']
+  d_min = config['d_min']
+  plot_bins = config['plot_bins']
+  n_ticks = config['n_ticks']
+
+  I = sf.intensities()
+  borders = _radialx.make_borders_rho(plot_bins, d_max, d_min, experiment)
+  binner = _radialx.Binner(I, borders, experiment)
+
+  values = getattr(binner, config['values'])()
+  x_labels = [("%4.1f" % c) for c in binner.centers_res]
+
+  tick_step = int(math.floor(plot_bins / n_ticks))
+
+  if plot is None:
+    plot = pygmyplot.xy_plot(binner.centers, values, master=master)
+  else:
+    plot.plot(binner.centers, values)
+
+  plot.axes.set_xticks(binner.centers[::tick_step])
+  plot.axes.set_xticklabels(x_labels[::tick_step])
+  plot.axes.set_xlabel('Resolution ($\\AA$)')
+  plot.axes.set_ylabel('intensity')
+
+  _radialx.plot_adjust(plot, pltcfg)
+
+  plot.canvas.draw()
+
+  return plot
+ 
+def powder_main():
+  if len(sys.argv) != 2:
+    usage()
+  else:
+    y = yaml.load(open(sys.argv[1]).read())
+
+  config = y['settings']
+  experiment = y['experiment']
+  pltcfg = y['plot']
+
+  log_level = getattr(logging, config['log_level'])
+  print log_level
+  logger = phyles.basic_logger(__name__, level=log_level)
+
+  tk = TK.Tk()
+
+  # logger.info("Reading mtz: '%s'", config['mtz_name'])
+  # mtz_file = mtz.object(config['mtz_name'])
+
+  # logger.info("Constructing Miller dict from mtz.")
+  # mtz_miller_dict = mtz_file.as_miller_arrays_dict()
+  # mtz_key = tuple(config['mtz_column'])
+  # sf_mtz = mtz_miller_dict[mtz_key]
+
+  logger.info("Reading pdb: '%s'", config['pdb_name'])
+  pdb_inp = pdb.input(file_name=config['pdb_name'])
+
+  logger.info("Creating structure factors from pdb.")
+  structure = pdb_inp.xray_structure_simple()
+  sf_pdb = structure.structure_factors(d_min=config['d_min']).f_calc()
+
+  ec_x = config['extinction_correction_x']
+
+  if ec_x is not None:
+    # sf_mtz = sf_mtz.apply_shelxl_extinction_correction(ec_x,
+    #                                       experiment['WAVELENGTH'])
+    sf_pdb = sf_pdb.apply_shelxl_extinction_correction(ec_x,
+                                          experiment['WAVELENGTH'])
+
+  # logger.info("Plotting powder from mtz: '%s'", config['mtz_name'])
+  # p = plot_powder(sf_mtz, config, pltcfg, experiment, master=tk)
+
+  # logger.info("Plotting powder from pdb: '%s'", config['pdb_name'])
+  # p = plot_powder(sf_pdb, config, pltcfg, experiment, master=tk)
+
+  logger.info("Creating integrated intensity pattern from pdb.")
+  pattern = integrated_intensity(sf_pdb,
+                           experiment['WAVELENGTH'],
+                           config['d_max'],
+                           config['d_min'],
+                           v=config['v'],
+                           w=config['w'],
+                           # B=config['B'],
+                           pattern_bins=config['pattern_bins'],
+                           peakwidths=config['peakwidths'],
+                           bin_reflections=config['bin_reflections'])
+
+  p = pygmyplot.xy_plot(numpy.degrees(pattern[0]),
+                        pattern[1], master=tk)
+
+  _radialx.write_spectrum(config['spectrum_name'],
+                          config['pdb_name'],
+                          pattern[0], pattern[1], False)
+
+  TK.Button(tk, text="Quit", command=tk.destroy).pack()
+  tk.mainloop()
+
+
+# Compuers Educ. Vol. 13, No. 2. pp. 101-108, 1989
+# special k --> 2 ((ln 2)/pi)^(1/2)
+# SPECIAL_K --> $K_{s} = \dfrac{2 \sqrt{\ln 2}}{\sqrt{\pi}}$
+SPECIAL_K = 2 * math.sqrt(math.log(2) / math.pi)
+# k squared --> 4 ln 2
+# K_SQ --> $K_{s}^{2} = 4 \ln 2$
+K_SQ = 4 * math.log(2)
+# half sigma k --> 1 / 4 sqrt(2 ln(2))
+# HALF_SIGMA_K --> $K_{\sigma/2} = \dfrac{1}{4 \sqrt{2 \ln 2}}$
+# HALF_SIGMA_K = 1 / (4 * math.sqrt(2 * math.log(2)))
+
+def integrated_intensity(miller, wavelength, d_max, d_min,
+                                 v=0.08, w=0.02, B=0, pattern_bins=250,
+                                 peakwidths=3.0, bin_reflections=False):
+  """
+  See ``Diffraction Basics, Part 2'' by James R. Connolly, 2012.
+
+  - `wavelength`: wavelength in Angstroms
+  - `d_max`: maximum d-spacing in Angstroms
+  - `d_min`: minimum d-spacing in Angstroms
+  - `v`: :math:`\text{FWHM} = v + w\tan\theta` in degrees
+  - `w`: :math:`\text{FWHM} = v + w\tan\theta` in degrees
+  - `N`: number of points in simulated spectrum
+  - `peakwidths`: number of peak width-at-half-height over which to
+    integrate a reflection
+  """
+  logger = logging.getLogger(__name__)
+  miller = miller.resolution_filter(d_max=d_max, d_min=d_min)
+  v = math.radians(v)
+  w = math.radians(w)
+
+  vol = miller.unit_cell().volume()
+
+  logger.info('Getting multiplicities.')
+  multis = miller.multiplicities()
+  # $I = F \times F^{*}$
+  logger.info('Getting intensities.')
+  intensities = miller.intensities()
+  # M corresponds to a Miller index (h,k,l)
+  logger.info('Getting two_theta.')
+  twothetas_M = miller.two_theta(wavelength)
+
+  m_times_i = multis.data().as_double() * intensities.data()
+
+  if bin_reflections:
+    logger.info('Extracting arrays.')
+    m_times_i = cctbx.miller.array(miller.set(), data=m_times_i)
+    mbinner = m_times_i.setup_binner(n_bins=pattern_bins)
+    logger.info('Creating selections.')
+    msels = [mbinner.selection(i) for i in mbinner.range_used()]
+    logger.info('Selecting M x F^2.')
+    m_times_i = [m_times_i.select(i) for i in msels]
+    logger.info('Summing M x F^2.')
+    m_times_i = [m.sum() for m in m_times_i]
+    m_times_i = numpy.array(m_times_i)
+    logger.info('Selecting two-thetas.')
+    twothetas_M = [twothetas_M.select(sel) for sel in msels]
+    logger.info('Finding means of 2-thetas.')
+    twothetas_M = [m.mean() for m in twothetas_M]
+    twothetas_M = numpy.array(twothetas_M)
+    size = m_times_i.size
+  else:
+    logger.info('Extracting arrays.')
+    m_times_i = m_times_i.as_numpy_array()
+    twothetas_M = twothetas_M.data().as_numpy_array()
+    size = miller.size()
+
+  thetas_M = twothetas_M / 2.0
+
+  # why do I need stol_sq?
+  # $\dfrac{\sin^{2}\theta}{\lambda^{2}}$
+  # stol_sq = miller.sin_theta_over_lambda_sq().data().as_numpy_array()
+
+  # why do I need exp_neg_2B_stol_sq?
+  # $-2 \times B \times \dfrac{\sin^{2}\theta}{\lambda^{2}}$
+  # exp_neg_2B_stol_sq = numpy.exp(-2 * B * stol_sq)
+
+
+  # Lorentz & polarization correction
+  # See p. 192 Equation 2.71 of Pecharsky, VK
+  # Fundamentals of powder diffraction  ISBN 0-387-24147-7
+  # $\dfrac{1 + \cos^{2} 2\theta}{\sin^{2}\theta \cos\theta}$
+  # note that $\cos^{2} \left ( 2\theta_{M} \right )$ is a constant
+  LPs = ((1 + numpy.cos(twothetas_M)**2) / 
+         ((numpy.sin(thetas_M)**2) * numpy.cos(thetas_M)))
+
+  # as K in Connolly Diffraction Basics, Part 2
+  """
+  K_{hkl} = \dfrac{M_{hkl}}{V^{2}}
+          \left | F_{hkl} \right |^{2}
+          \left ( \dfrac{1 + \cos^{2}(2\theta)}
+                        {\sin^{2}\theta cos\theta} \right )
+  """
+  # why is exp_neg_2B_stol_sq here?
+  # Is = (multis * LPs * intensities * exp_neg_2B_stol_sq) / (vol**2)
+  Is = (LPs * m_times_i) / (vol**2)
+
+  # linear in $2\theta$
+  twotheta_max = twothetas_M.max()
+  twotheta_min = twothetas_M.min()
+  # number of radians across entire region to be simulated
+  twotheta_interval = twotheta_max - twotheta_min
+  twothetas = numpy.linspace(twotheta_min,
+                             twotheta_max,
+                             pattern_bins)
+  thetas = twothetas / 2.0
+
+  # $w + (v \tan \theta)$
+  HBs_sq = w + (v * numpy.tan(thetas_M))
+
+  # full width of the peak at half-max
+  HBs = numpy.sqrt(HBs_sq)
+  # pygmyplot.scatter(twothetas_M, HBs)
+
+  n_per_radian = pattern_bins / twotheta_interval
+
+  integrated = numpy.zeros(pattern_bins, dtype=float)
+
+  centers = (pattern_bins * 
+             (twothetas_M - twotheta_min) / twotheta_interval)
+  centers = numpy.round(centers).astype(int)
+
+  delta_twothetas = numpy.empty_like(integrated)
+  delta_twothetas_sq = numpy.empty_like(integrated)
+  profile_f = numpy.empty_like(integrated)
+  profile = numpy.empty_like(integrated)
+
+  # sum the Gaussian profile functions
+   #  Compuers Educ. Vol. 13, No. 2. pp. 101-108, 1989
+  """
+  \dfrac{2 \sqrt{\ln 2}}{H_{\mathrm{B}}\sqrt{\pi}}
+  \exp\left[\left(\dfrac{-4\ln 2}{H_{\mathrm{B}}^2}\right)
+          \left(2\theta - 2\theta_{\mathrm{B}}\right)^{2}\right]
+  """
+  for mdx in xrange(size):
+
+    if mdx % 10000 == 1:
+      logger.info('Completed %s of %s reflections.', mdx, size)
+
+    # $K_{s}/H_{B} = \dfrac{2 \sqrt{\ln 2}}{H_{B} \sqrt{\pi}}$
+    special_k_over_hb = SPECIAL_K / HBs[mdx]
+    # $\dfrac{4 \ln 2}{H_{B}^{2}}$
+    neg_k_sq_over_hb_sq = -K_SQ / HBs_sq[mdx]
+
+    # half_sigma = HALF_SIGMA_K * HBs[mdx]
+    # misnomer!
+    # half_HB: half width of the peak at half-max in radians
+    # $H_{B} / 2$
+    half_HB = HBs[mdx] / 2
+    # number of points in the half_peak
+    half_peak = peakwidths * half_HB * n_per_radian
+    center = centers[mdx]
+
+    idx = max((0, center - int(math.floor(half_peak))))
+    jdx = min((pattern_bins, center + int(math.ceil(half_peak))))
+
+    # idx = max((0, center - 2))
+    # jdx = min((N, center + 2))
+
+    assert (jdx - idx) > 0
+
+    # Lorenzian (Sato & Machii Computers & Chemistry Vol. 6 No 1. pp. 33-37, 1982.)
+    """
+    A_{J}^{L} = \dfrac{2}{\pi H_{B}}
+    \left [1 + \dfrac{4}{H_{B}^{2}}
+               \left ( 2\theta_{i} - 2\theta_{hk\ell} \right )^2
+    \right ]^{-1}
+    """
+    # $\left(2\theta - 2\theta_{B}\right)$
+    delta_twothetas[idx:jdx] = twothetas[idx:jdx] - twothetas_M[mdx]
+    # $\left(2\theta - 2\theta_{B}\right)^{2}$
+    delta_twothetas_sq[idx:jdx] = (delta_twothetas[idx:jdx] *
+                                             delta_twothetas[idx:jdx])
+
+    # Lorentzian $\left(2\theta - 2\theta_{B}\right)^{2}$
+    profile_f[idx:jdx] = delta_twothetas_sq[idx:jdx]
+    profile_f[idx:jdx] = profile_f[idx:jdx] * (4 / HBs_sq[mdx])
+    profile_f[idx:jdx] = profile_f[idx:jdx] + 1
+    # to -1 power
+    """
+    \left [1 + \dfrac{4}{H_{B}^{2}}
+               \left ( 2\theta_{i} - 2\theta_{hk\ell} \right )^2
+    \right ]^{-1}
+    """
+    profile_f[idx:jdx] = 1 / profile_f[idx:jdx]
+    # $\dfrac{2}{\pi H_{B}}$
+    profile_f[idx:jdx] = profile_f[idx:jdx] / (half_HB * math.pi)
+
+    # profile_f = (1 / math.pi) * (half_HB /
+    #                              ((delta_twothetas_sq) +
+    #                               (HBs_sq[mdx] / 4)))
+
+    # profile_f_exponents = neg_k_sq_over_hb_sq * delta_twothetas_sq
+    # profile_f_gaussians = numpy.exp(profile_f_exponents)
+    # profile_f = special_k_over_hb * profile_f_gaussians
+
+    profile[idx:jdx] = profile_f[idx:jdx] * Is[mdx]
+    integrated[idx:jdx] += profile[idx:jdx]
+
+  return numpy.array([twothetas, integrated])

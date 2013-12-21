@@ -1,0 +1,55 @@
+# The groups database has two sections "images" and "spectra".
+# Within these sections are subsections that are titled by the
+# user-specified group names.
+#
+# Subsection (group) names must be valid in the database format used
+# (config http://www.voidspace.org.uk/python/configobj.html
+# or yaml http://www.yaml.org/spec/1.2/spec.html).
+# Also, subsection (group) names must not be bounded by parentheses.
+# For example "(my_group)" is not a valid group name and will
+# cause an error.
+#
+# Bounding with parentheses has a special meaning as described below.
+#
+# In the "images" section, the group subsections contain a
+# sequence of names either of images (specified in the image database)
+# or groups, but bounded by parentheses. For example, if a
+# subsection (group) # name is called "abeta-fibers", then it may
+# be referenced in the sequence for the group "abeta"
+# by "(abeta-fibers)", as in the
+# example group database.
+# The "spectra" section is similar to the "images" section,
+# except that the "spectra" section contains information only
+# about spectra whereas the "images" section contains information
+# only about images.
+images :
+  oligos :
+     - aged-oligs-0525
+     - nacl-prefibers-0528
+     - amoac-prefibers-2905
+     - fresh-oligomers-0527
+     - unfiltered-oligomers-0527
+     - naive-pd
+     - naive-lyo-pd
+  abeta-fibers : aged-fibers-0525
+  abeta : 
+     - oligos
+     - (abeta-fibers)
+  abeta-inhs : abab-20to1
+  sstsaa-fibers :
+     - sstsaa-rnase-h12a
+     - sstsaa-rnase-h119a
+     - sstsaa-rnase-h12a-154
+  inclusion :
+     - lei-esat6
+     - lei-b40-bmp2
+     - lei-mog
+  fibers :
+     - (abeta-fibers)
+     - (sstsaa-fibers)
+
+spectra :
+  simulated : 
+     - sim-01
+     - sim-02
+

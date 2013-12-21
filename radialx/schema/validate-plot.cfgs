@@ -1,0 +1,129 @@
+################################################################
+##                                                            ##
+##   Validation Schema for radialx plot configuration file    ##
+##                                                            ##
+################################################################
+## Comments give end-user help and description of the various
+## various fields.
+
+
+# how big to make the plot in inches
+plot_size = float_tuple(length=2, default=list(8,5))
+# dots per inch
+dpi = integer(default=100)
+
+# these are the labeled ticks on the x-axis
+num_xticks = integer(default=10)
+
+# unit to use as x-labels, "two-theta degrees" or "resolution"
+# or "two-theta radians"
+# x_labels = "two-theta degrees"
+x_labels = """option("resolution",
+                     "two-theta degrees",
+                     "two-theta radians",
+                     default="two-theta degrees")"""
+
+
+# make sure that these explicit x_labels are included
+# be careful, because these will be added to the
+# automatically generated labels created by num_xticks
+# make sure that these are in units specified by x_labels
+# use None for no explicit x_labels
+# explicit_x_labels = 10.5, 4.7
+# explicit_x_labels = 28, 15, 10, 8, 7, 5.5, 4.7, 4, 3.6
+explicit_x_labels = float_list(empty=None, default=list())
+
+# x_labels will be spaced approximately evenly according
+# to the binning, but the middles of most bins will not
+# be at nice, round numbers, this setting will help the
+# program to decide how much to nudge the the ticks and
+# labels to give them more rounded values
+# x_label_spacing essentially specifies the significant digits
+# e.g. x_label_spacing = 2 means 28.1 will be moved to 28.0
+# and 2.51 will be moved to 2.5, etc.
+# this setting is not applied to the explicit_x_labels
+# use 0 or negative integer (e.g. -1) for no nudging
+x_label_spacing = integer(default=2)
+
+# this is the unix style formatting for the labels
+# on the x-axis, e.g. "5.2f" or "2d" or "04.1f", etc.
+# the precision of the format (the part after the
+# optional "." should not exceed 9 (e.g. not 10, 11, etc.)
+x_label_format = number_format(default="5.1f")
+
+# stretch the abscissa according to
+# d* => "d-star"
+# (d*)**2 => "d-star squared"
+# pixel => "pixel"
+# linearized resolution => "resolution"
+# two theta in degress => "two-theta degs"
+# theta in degrees => "theta degs"
+# x_scaling = "theta degs"
+x_scaling = """option("d-star",
+                      "d-star squared",
+                      "pixel",
+                      "linearized resolution",
+                      "two-theta degs",
+                      "theta degs",
+                      default="d-star")"""
+
+# how thick should the lines be
+line_width = float(default=2)
+
+# how thick the ticks should be
+tick_width = float(default=1.5)
+# how long the ticks should be
+tick_length = float(default=7)
+
+# smooth the profiles? not recommended for publication.
+# specify smoothing parameters in the main config file
+smoothed = boolean(default=True)
+
+# smooth imported spectra?
+# smoothing is applied for the plotting wherein
+# the data may have been resampled
+smoothed_imp = boolean(default=True)
+
+# Text hints: http://matplotlib.sf.net/users/mathtext.html
+x_title = string(default="Resolution ($\mathrm{\AA}$)")
+y_title = string(default="Normalized Average Intensity")
+
+# x_limits and y_limits are tuples, e.g.:
+#   x_limits = 24, 3.6
+#   y_limits = 0.0, 1.4
+x_limits = float_tuple(length=2, empty=None, default=None)
+y_limits = float_tuple(length=2, empty=None, default=None)
+
+# these can be gotten from the plot adjust window
+left = float(default=0.09)
+bottom = float(default=0.11)
+right = float(default=0.98)
+top = float(default=0.91)
+wspace = float(default=0.20)
+hspace = float(default=0.20)
+
+# font properties
+# labeling the ticks on the axes
+text_size = float(default=10)
+text_weight = """option("normal", "bold", "bolder", "lighter",
+                        "100", "200", "300", "400", "500",
+                        "600", "700", "800", "900",
+                        default="normal")"""
+# plot title
+title_size = float(default=14)
+title_weight = """option("normal", "bold", "bolder", "lighter",
+                         "100", "200", "300", "400", "500",
+                         "600", "700", "800", "900",
+                         default="normal")"""
+# legend text
+legend_size = float(default=8)
+legend_weight = """option("normal", "bold", "bolder", "lighter",
+                          "100", "200", "300", "400", "500",
+                          "600", "700", "800", "900",
+                          default="normal")"""
+# labeling the axes
+label_size = float(default=12)
+label_weight = """option("normal", "bold", "bolder", "lighter",
+                         "100", "200", "300", "400", "500",
+                         "600", "700", "800", "900",
+                         default="normal")"""

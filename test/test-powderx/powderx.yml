@@ -1,0 +1,53 @@
+settings :
+  # pdb file from which to make a spectrum
+  pdb_name : "../testdata/stg06-phi06.4-wc-03.8-rc1.0-m4-12.pdb"
+
+  # the output spectrum as a yaml file
+  spectrum_name : "stg06-phi06.4-wc-03.8-rc1.0-m4-12.yml"
+
+  # resolution range in d-spacings
+  # d_max: maximum d-spacing (lowest resolution)
+  d_max : 40
+  # d_min: minimum d-spacing (highest resolution)
+  d_min : 4.2
+
+  # some plot parameters
+  plot_bins : 100
+  n_ticks : 13
+
+  # see shelxl manual chapter 7 page 7
+  extinction_correction_x : 0
+
+  # values should be one of
+  # - area_normalized_summed_data (i.e. average pixel intensity)
+  # - mean_data (mean value of each bin)
+  # - summed_data (appropriate for integration)
+  values : "summed_data"
+
+  # log_level can be "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"
+  log_level : "INFO"
+
+  # v (0.08) and w (0.02) (degs) for half-max width: v + w tan(theta)
+  v : 0.08
+  w : 0.02
+  # number of points in pattern (200)
+  pattern_bins : 200
+  # number of peak widths over which to integrate each reflection (3.0)
+  peakwidths : 3
+  # if True, the reflections will be binned into the number of 
+  # bins specified by pattern_bins to make the # integration
+  # significantly faster but with a small decrease in accuracy
+  bin_reflections : True
+
+plot :
+  # changes the appearance of the plots
+  # margins between plot and page border
+  # note that axes labels are in the margins
+  left : 0.15
+  right : 0.95
+  top : 0.95
+  bottom : 0.15
+
+experiment :
+  WAVELENGTH : 1.54178
+  DISTANCE : 250

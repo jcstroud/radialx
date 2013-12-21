@@ -1,0 +1,149 @@
+[general]
+# mode is "averaging" or "recentering"
+# # mode should become a command line flag
+# # and the "general" group should become "databases" or "data"
+# mode = "averaging"
+mode = option("averaging", "recentering")
+
+# some image info must be or is better kept 
+# external to the images themselves
+# img_db is a database file that stores that info, see the
+# example "images.cfg"
+# img_db = "/Users/jstroud/Code/radialx/testdata/images.cfg"
+img_db = string()
+
+# the img_dir is where the actual are kept
+# images are in the binary format produced by the
+# "File --> Save.." command in adxv
+# (http://www.scripps.edu/~arvai/adxv.html)
+img_dir = string()
+
+# spec_db = "/Users/jstroud/Code/radialx/testdata/spectra.cfg"
+# spec_dir = "/Users/jstroud/Code/radialx/testdata"
+spec_db = string()
+spec_dir = string()
+
+# databases can also be in yaml format, see the groups.yml example
+# in testdata and compare to groups.cfg
+# groups_db = "/Users/jstroud/Code/radialx/testdata/groups.yml"
+groups_db = string()
+
+# where to store the cache? Use ".radialx/cache".
+# cache = "/Users/jstroud/Code/radialx/testdata/.radialx/cache"
+cache = string()
+
+[averaging]
+# the groupings in groups_db allow the user to specify
+# names for a group of several images or spectra such that
+# they may be processed together without specifying
+groups_db = "/Users/jstroud/Code/radialx/testdata/groups.yml"
+
+
+# "simulated" and "experimental" are specified as
+#    1. a single file
+#    2. a group (group name in brackets, surrounded by quotes)
+#    3. a sequence of either or both
+# use empty brackets ("[]") for no simulated spectra
+# simulated = "sim-02"
+# simulated = []
+simulated = string_list(force=True, empty=[])
+# `average` is a list of keys defined below in [groups]
+
+# number of bins for the simulated spectra
+spec_bins = integer()
+
+# experimental = """
+#                 [
+#                   "(sstsaa-fibers)",
+#                   "(abeta-fibers)",
+#                   "amoac-prefibers-2905"
+#                 ]
+#                """
+# experimental = "(sstsaa-fibers)"
+# experimental = "sstsaa-rnase-h12a-154"
+experimental = string_list(min=1)
+
+# radial averaging limits
+# limits = 30, 3.5
+limits = float_tuple(asdf
+
+# number of bins for radial averaging
+img_bins = 100
+
+# resolution (A) within the bins of interest for
+# which normalization will occur; None is no normalization
+# roi = 13.7, 7.8
+roi = 5.0, 4.4
+
+# which experimental spectrum to compare for residual
+# calculations
+residual = "amoac-prefibers-2905"
+
+#############################################################
+# norm_type, do_norm, and stretch are display parameters
+# and probably should be moved to the plot config
+#############################################################
+
+# type of normalization function ("max", "mean")
+# norm_type = "mean"
+norm_type = "max"
+do_norm = True
+
+# stretch = True will stretch the intensities along Y
+# such that the minimum intensity is 0 and the max is 1
+# this is probably not desired for publication without
+# an explanation
+# stretch overrides do_norm
+stretch = True
+
+#############################################################
+
+# do the sharpness calculation for the peak corresponding
+# to the maximum bin within the roi
+do_sharpness = True
+
+# the peak is defined as the max to the inflection
+# it can be extended past the inflection point
+# this number of bins
+extend_peak = 3
+
+# smothing parameters
+# smoothing_factor (bigger is more smooth):
+# window =  bins / smoothing_factor
+smoothing_factor = 20
+# set the min and max (suggested: 7, 13)
+min_window = 7
+max_window = 13
+
+# where to put the legend:
+# matplotlib.sf.net/api/pyplot_api.html#matplotlib.pyplot.legend
+# e.g. "best", "upper left", "lower center", "lower right", "center"
+legend = "upper right"
+# Text hints: http://matplotlib.sf.net/users/mathtext.html
+plot_title = "Abeta Oligos vs. Fibers at 4.7 $\mathrm{\AA}$ Peak"
+
+# most plotting configuration is kept in a separate config file
+# see the example "plot.cfg"
+plot_config = "/Users/jstroud/Code/radialx/test/plot-fresh-fullres.cfg"
+
+[recentering]
+# which image should be recentered on this run
+recenter_image = "sstsaa-rnase-h12a"
+# can be in units of Angstrom (A) or pixels (px)
+disc = 925, 1145
+# "A" or "px"
+disc_units = "px"
+# give the center or use None to take from the imagedb
+start_center = 1523, 1529
+# bin_factor 4 for first, bin_factor 1 for second
+bin_factor = 1
+# bins should be about 10
+num_bins = 10
+# recenter_radius 20 for first, recenter_radius 7 for second
+recenter_radius = 5
+# marking the center to check proper reading of image
+mark_center = True
+mark_radius = 4
+mark_tif = "test.tif"
+# figure size in inches at 100 dpi
+plot_size = 6, 3
