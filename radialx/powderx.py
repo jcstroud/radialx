@@ -35,7 +35,7 @@ class GUIError(Exception):
   pass
 
 def usage():
-  print "usage: powder config.yml"
+  print "usage: powderx config.yml"
   sys.exit()
   
 def plot_powder(sf, config, pltcfg, experiment, master=None,

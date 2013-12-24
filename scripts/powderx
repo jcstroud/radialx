@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env cctbx.python
 
 from radialx import powderx
 

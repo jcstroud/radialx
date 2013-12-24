@@ -41,9 +41,11 @@ sdist : $(PRODUCTS)
 	-rm dist/$(BUNDLE).tar.gz
 	$(PYTHON) setup.py sdist
 
-install : all
+utilities :
+	cp scripts/* $(PREFIX)/bin/
+
+install : all utilities
 	$(PYTHON) setup.py install
-	cp bin/* $(ROOT)/bin
 
 build : all
 	$(PYTHON) setup.py build

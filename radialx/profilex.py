@@ -81,7 +81,7 @@ class StdOutlet(object):
     sys.stdout.write(msg + "\n")
 
 def doopts():
-  usage = 'usage: radialx.py configfile'
+  usage = 'usage: profilex configfile'
   parser = OptionParser(usage)
   parser.add_option("-m", "--model", dest="model",
                     help="unique pdb model",
