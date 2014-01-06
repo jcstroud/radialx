@@ -43,7 +43,7 @@ sdist : $(PRODUCTS)
 
 install : all
 	$(PYTHON) setup.py install
-	cp bin/* $(ROOT)/bin
+	cp execs/* $(ROOT)/bin
 
 build : all
 	$(PYTHON) setup.py build

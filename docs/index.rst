@@ -4,7 +4,7 @@
 radialx Documentation
 =====================
 
-A python package for powder diffraction data
+A python package for powder diffraction data.
 
 .. toctree::
    :maxdepth: 2

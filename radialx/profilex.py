@@ -32,15 +32,15 @@ class PB(object):
     def __init__(self, parent, svar=None, height=5):
         self.parent = parent
         self._svar = svar
-        self._g = Frame(parent)
+        self._g = TK.Frame(parent)
         self._g.pack()
         (w, h, x, y) = self.get_dims()
-        self._canvas = Canvas(self._g, width=w,
-                                       height=height,
-                                       bd=0,
-                                       highlightthickness=0,
-                                       relief=SUNKEN)
-        self._canvas.pack(side=LEFT, expand=YES, fill=BOTH)
+        self._canvas = TK.Canvas(self._g, width=w,
+                                          height=height,
+                                          bd=0,
+                                          highlightthickness=0,
+                                          relief=TK.SUNKEN)
+        self._canvas.pack(side=TK.LEFT, expand=TK.YES, fill=TK.BOTH)
         self._tl = self._canvas.winfo_toplevel()
 
     def get_dims(self):
@@ -58,13 +58,13 @@ class PB(object):
     # Close Progress Bar
     def deactivate(self):
         self._svar.set('')
-        self._canvas.delete(ALL)
+        self._canvas.delete(TK.ALL)
 
     # Update Progress Bar
     def update(self, msg, ratio):
         (w, h, x, y) = self.get_dims()
         self._canvas.config(width=w, height=h)
-        self._canvas.delete(ALL)
+        self._canvas.delete(TK.ALL)
         self._canvas.create_rectangle(0, 0, w,
                                             h, fill='white')
         if ratio != 0.0:
@@ -81,7 +81,7 @@ class StdOutlet(object):
     sys.stdout.write(msg + "\n")
 
 def doopts():
-  usage = 'usage: radialx.py configfile'
+  usage = 'usage: profilex configfile'
   parser = OptionParser(usage)
   parser.add_option("-m", "--model", dest="model",
                     help="unique pdb model",
@@ -112,7 +112,7 @@ def profile_main():
     usage(parser, 'No config file specified.')
 
   tk = TK.Tk()
-  tk.title('radialx')
+  tk.title('profilex')
   tk.protocol("WM_DELETE_WINDOW", sys.exit)
   plot_f = TK.Frame(tk, relief=TK.RIDGE, border=2)
   plot_f.pack(side=TK.TOP, fill=TK.BOTH, expand=TK.YES)
@@ -139,9 +139,9 @@ def profile_main():
   # TK.Button(tk, text='Quit', command=tk.destroy).pack(side=TK.TOP)
   tk.update_idletasks()
 
-  cfg = radialx.load_config(config_file)
+  cfg = _radialx.load_config(config_file)
   general = cfg['general']
-  spectradb = radialx.load_config(general['spec_db'])
+  spectradb = _radialx.load_config(general['spec_db'])
 
   # interpolate fields for spectra (e.g. %latest%)
   spec_dir = general['spec_dir']
@@ -154,7 +154,7 @@ def profile_main():
         latest = last_made(dirpath=spec_dir, suffix=suffix)
       spec['filename'] = latest
 
-  imagesdb = radialx.load_config(general['img_db'])
+  imagesdb = _radialx.load_config(general['img_db'])
 
   if general['cache'] is None:
     cache = DEFAULT_CACHE
@@ -164,20 +164,20 @@ def profile_main():
 
   if general['mode'] == "averaging":
     config = cfg['averaging']
-    groups_img = radialx.load_config(general['img_groups'])
+    groups_img = _radialx.load_config(general['img_groups'])
     groups_img = groups_img['images']
-    groups_spec = radialx.load_config(general['spec_groups'])
+    groups_spec = _radialx.load_config(general['spec_groups'])
     groups_spec = groups_spec['spectra']
     cfg['groups'] = {'images' : groups_img, 'spectra' : groups_spec}
-    spectra = radialx.get_spectra(cfg, spectradb, "averaging")
-    images = radialx.get_images(cfg, imagesdb, "averaging")
-    pltcfg = radialx.load_config(config['plot_config'])
+    spectra = _radialx.get_spectra(cfg, spectradb, "averaging")
+    images = _radialx.get_images(cfg, imagesdb, "averaging")
+    pltcfg = _radialx.load_config(config['plot_config'])
     plt = MyXYPlot(master=plot_f,
                    figsize=pltcfg['plot_size'],
                    dpi=pltcfg['dpi'])
-    sp = radialx.load_spectra(config, spectra)
+    sp = _radialx.load_spectra(config, spectra)
     sp_values = sp.values()
-    ms = radialx.averages(config, images,
+    ms = _radialx.averages(config, images,
                                   pltcfg=pltcfg,
                                   plt=plt,
                                   job=job_pb.update,
@@ -185,7 +185,7 @@ def profile_main():
                                   cache=cache)
     ms_values = ms.values()
     TCs = sp_values + ms_values
-    radialx.sharpnesses(config, TCs)
+    _radialx.sharpnesses(config, TCs)
     if config['scaled_to'] is not None:
       db = SQLite.Database(general['score_db'])
       title = "Model Name"
@@ -211,9 +211,9 @@ def profile_main():
                         # base64 of numpy serialized spectrum array
                         # in [ 2-theta, intensity ] pairs
                         ("spectrum", TEXT),
-                        # json of the radialx averaging config section
+                        # json of the profilex averaging config section
                         ("config", TEXT),
-                        # json of the radialx general config section
+                        # json of the profilex general config section
                         ("general", TEXT),
                         mode="open")
 
@@ -260,6 +260,7 @@ def profile_main():
             else:
               config['save_score'] = False
       config['pdb_model'] = options.model
+      T = None
       Cs = []
       for TC in TCs:
         if TC['image_key'] == config['scaled_to']:
@@ -267,11 +268,15 @@ def profile_main():
         else:
           Cs.append(TC)
       std_outlet = StdOutlet(tk)
-      radialx.scale_several(config, Cs, T, general, std_outlet, table)
+      if T is None:
+        tplt = "Unrecognized value for scaled_to: %s"
+        msg = tplt % config['scaled_to']
+        raise _radialx.ConfigError(msg)
+      _radialx.scale_several(config, Cs, T, general, std_outlet, table)
     msc = ms.copy()
     msc.update(sp)
     pmsc = msc.reversed()
-    nimgs = radialx.plot_images(plt, pmsc, config, pltcfg, 0)
+    nimgs = _radialx.plot_images(plt, pmsc, config, pltcfg, 0)
     statusvar.set("%s Images Processed and Plotted" % nimgs)
     task_pb.deactivate()
     job_pb.deactivate()
@@ -286,19 +291,19 @@ def profile_main():
     config['img_bins'] = config['bins']
     config['norm_type'] = None
     config['stretch'] = False
-    images = radialx.get_images(cfg, imagesdb, "difference")
+    images = _radialx.get_images(cfg, imagesdb, "difference")
     keys = [k for (k, d) in images]
-    pltcfg = radialx.load_config(config['plot_config'])
+    pltcfg = _radialx.load_config(config['plot_config'])
     plt = MyXYPlot(master=plot_f,
                    figsize=pltcfg['plot_size'],
                    dpi=pltcfg['dpi'])
-    # radialx.plot_spectra(config, spectra, pltcfg, plt, cache=cache)
-    ms = radialx.averages(config, images,
-                                  pltcfg=pltcfg,
-                                  plt=plt,
-                                  job=job_pb.update,
-                                  task=task_pb.update,
-                                  cache=cache)
+    # _radialx.plot_spectra(config, spectra, pltcfg, plt, cache=cache)
+    ms = _radialx.averages(config, images,
+                                   pltcfg=pltcfg,
+                                   plt=plt,
+                                   job=job_pb.update,
+                                   task=task_pb.update,
+                                   cache=cache)
     TCs = ms.values()
     if TCs[0]['image_key'] == config['scaled_to']:
       T = TCs[0]
@@ -307,18 +312,19 @@ def profile_main():
       T = TCs[1]
       C = TCs[0]
     Cs = [C]
-    buoyancy = config['buoyancy']
-    radialx.scale_several(config, Cs, T, buoyancy=buoyancy)
+    std_outlet = StdOutlet(tk)
+    table = None
+    _radialx.scale_several(config, Cs, T, general, std_outlet, table)
     msc = ms.copy()
-    nimgs = radialx.plot_images(plt, msc, config, pltcfg, 0)
+    nimgs = _radialx.plot_images(plt, msc, config, pltcfg, 0)
     statusvar.set("%s Images Processed and Plotted" % nimgs)
     twoths = T['bin middles two-theta']
     avis = T['scaled'] - C['scaled']
     if avis.min() < 0:
       avis = avis - avis.min()
-    afile = open(config['output'] + ".yml", "w")
-    radialx.write_spectrum(twoths, avis, afile)
-    afile.close()
+    spectrum_file = config['output'] + ".yml"
+    _radialx.write_spectrum(spectrum_file,
+                            config['output'], twoths, avis, False)
     task_pb.deactivate()
     job_pb.deactivate()
   elif general['mode'] == "recentering":
@@ -332,11 +338,11 @@ def profile_main():
     #           "whys" : whys,
     #           "max_xy" : max_xy}
 
-    result = radialx.recenter(general, config, image,
-                                               plt=plt,
-                                               job=job_pb.update,
-                                               task=task_pb.update,
-                                               cache=cache)
+    result = _radialx.recenter(general, config, image,
+                                                plt=plt,
+                                                job=job_pb.update,
+                                                task=task_pb.update,
+                                                cache=cache)
     # flip x and y for image space
     # title = "%s\n%s to %s %s (%s px grid)" % params
     title = "%s : %s" % (image['filename'], result['max_xy'])

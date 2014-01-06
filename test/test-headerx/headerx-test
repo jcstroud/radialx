@@ -1,0 +1,32 @@
+#! /usr/bin/env python
+
+"""
+runs headerx without the need to build and install
+"""
+
+# import os
+import sys
+# import glob
+# import shutil
+import logging
+
+sys.path.insert(0, "../..")
+
+from radialx import headerx
+
+if __name__ == "__main__":
+
+  logging.basicConfig(level=logging.INFO)
+
+  logging.info("%%%%%%%%%%%%%%%%%%%% testing %%%%%%%%%%%%%%%%%%%%")
+
+  # if os.path.exists('output'):
+  #   logging.info("Removing 'output' directory.")
+  #   shutil.rmtree('output')
+
+  logging.info("Running header_main()")
+  headerx.header_main()
+
+  # for pattern in ["*.ps", "*.png", "*.in", "powder-tmp.pdb"]:
+  #   for f in glob.glob(pattern):
+  #     os.remove(f)

@@ -4,6 +4,9 @@ ECHO = echo
 
 # directories
 
+# installation root
+ROOT = /usr/local
+
 # documentation source
 DOCDIR = docs
 
@@ -19,5 +22,3 @@ DOCDEST = .
 # name of template file for license
 LICENSE_TEMPLATE = LICENSE-BSD.tmplt
 
-# installation root
-ROOT = /usr/local

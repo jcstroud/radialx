@@ -29,10 +29,146 @@ import cctbx
 logging.debug('importing iotbx')
 from iotbx import mtz, pdb
 
+logging.debug('importing flex')
+from scitbx.array_family import flex
+
 class PowderError(Exception):
   pass
 class GUIError(Exception):
   pass
+
+class Binner(object):
+  def __init__(self, miller, borders, experiment):
+    """
+    The `borders` should be in :math:`\rho`
+    (:math:`\dfrac{\sin \theta}{\lambda}`).
+    The `miller` should be a :class:`cctbx.miller.array`.
+    The `experiment` should be a mapping with minimal key-value pairs:
+      - I{WAVELENGTH} : wavelength in Angstroms
+      - I{DISTANCE} : distance to detector in mm
+    """
+    borders = numpy.array(borders)
+    borders.sort()
+    self.borders = borders
+    self.miller = miller
+    self.experiment = experiment
+
+    borders_res = vec_rho2res(borders)
+    bin_borders_rho = zip(borders[:-1], borders[1:])
+    bin_borders_rho = numpy.array(bin_borders_rho)
+    bin_borders_res = zip(borders_res[:-1], borders_res[1:])
+    bin_borders_res = numpy.array(bin_borders_res)
+    self.bin_borders_rho = bin_borders_rho
+    self.bin_borders_res = bin_borders_res
+    self.n_bins_used = len(bin_borders_rho)
+    d_spc = miller.d_spacings().data()
+    selections = []
+    for (d_max, d_min) in bin_borders_res:
+       sln = (d_spc <= d_max) & (d_spc >= d_min)
+       selections.append(sln)
+    self.selections = selections
+    counts = [sel.as_numpy_array().sum() for sel in self.selections]
+    self.counts = numpy.array(counts)
+    self.centers = (borders[:-1] + borders[1:]) / 2
+    self.centers_res = vec_rho2res(self.centers)
+    self.centers_2theta = vec_rho2twotheta(self.centers, experiment)
+  def bin_selection(self, i):
+    """
+    Return the selection for bin `i`.
+    """
+    return self.selections[i]
+  def bin_d_range(self, i):
+    """
+    Return the max, min d_spacings for bin `i`.
+    """
+    return self.bin_borders_res[i]
+  def bin_rho_range(self, i):
+    """
+    Return the min and max :math:`\rho` for bin `i`.
+    """
+    return self.bin_borders_rho[i]
+  def bin(self, i):
+    """
+    Returns bin `i` selected from `self.miller`
+    """
+    return self.miller.select(self.selections[i])
+  def bin_data(self, i):
+    """
+    Returns the data of bin `i` selected from `self.miller`.
+    """
+    return self.miller.select(self.selections[i]).data()
+  def data(self):
+    """
+    Returns th data of each bin selected from `self.miller` as a
+    :class:`numpy.ndarray`.
+    """
+    return [self.bin_data(i) for i in self.range_used()]
+  def count(self, i):
+    """
+    Return the number of reflections in bin `i`.
+    """
+    return self.counts[i]
+  def range_used(self):
+    """
+    Return an `xrange` generator for the bins used in `self`.
+    """
+    return xrange(self.n_bins_used)
+  def binned(self, miller):
+    """
+    Given a :class:`cctbx.miller.array`, `miller`, return the
+    :class:`Binner` for it.
+    """
+    return self.__class__(self.borders, miller)
+  def bin_area(self, i):
+    """
+    Return the area on the detector for bin `i`.
+    """
+    limits = self.bin_d_range(i)
+    return bin_area(limits, self.experiment)
+  def mean_bin_data(self, i):
+    """
+    Return the mean of the data of bin `i`.
+    """
+    return flex.mean(self.bin_data(i))
+  def mean_data(self):
+    """
+    Return the mean of the data of each bin.
+    """
+    return [self.mean_bin_data(i) for i in self.range_used()]
+  def area_normalized_summed_bin_data(self, i):
+    """
+    Return the sum of the data of bin `i` divided by the bin area.
+    """
+    tot = flex.sum(self.bin_data(i))
+    return tot / self.bin_area(i)
+  def area_normalized_summed_data(self):
+    """
+    Returns the sum of the data of each bin divided by the area of the bin
+    as a :class:`numpy.ndarray`.
+    """
+    a = [self.area_normalized_summed_bin_data(i) for i in self.range_used()]
+    return numpy.array(a)
+  def summed_data(self):
+    """
+    Returns the sum of the data for each bin as a :class:`numpy.ndarray`.
+    """
+    return numpy.array([flex.sum(d) for d in self.data()])
+  def bin_center(self, i):
+    """
+    Return the center of bin `i` in :math:`\rho`.
+    """
+    return self.centers[i]
+  def bin_d_center(self, i):
+    """
+    Return the center of bin `i` in d-spacing.
+    """
+    return self.centers_res[i]
+  def bin_2theta_center(self, i):
+    """
+    Return the center of bin `i` in 2*theta.
+    """
+    return self.centers_2theta[i]
+
 
 def usage():
   print "usage: powder config.yml"
@@ -74,7 +210,7 @@ def plot_powder(sf, config, pltcfg, experiment, master=None,
 
   I = sf.intensities()
   borders = _radialx.make_borders_rho(plot_bins, d_max, d_min, experiment)
-  binner = _radialx.Binner(I, borders, experiment)
+  binner = Binner(I, borders, experiment)
 
   values = getattr(binner, config['values'])()
   x_labels = [("%4.1f" % c) for c in binner.centers_res]

@@ -1,0 +1,7 @@
+#! /usr/bin/env cctbx.python
+
+from radialx import powderx
+
+if __name__ == "__main__":
+
+  powderx.powder_main()

@@ -31,8 +31,6 @@ import signals
 
 from ordereddict import OrderedDict
 
-from scitbx.array_family import flex
-
 class RadialXError(Exception): pass
 class ADXVError(RadialXError): pass
 class ShapeError(RadialXError): pass
@@ -748,139 +746,6 @@ def make_borders_twotheta(n_bins, d_max, d_min, experiment):
   tth_min = 2 * math.asin(wl / (2.0 * d_min))
   tths = numpy.linspace(tth_max, tth_min, num=(n_bins + 1))
   return vec_twotheta2rho(tths, experiment)
-
-class Binner(object):
-  def __init__(self, miller, borders, experiment):
-    """
-    The `borders` should be in :math:`\rho`
-    (:math:`\dfrac{\sin \theta}{\lambda}`).
-    The `miller` should be a :class:`cctbx.miller.array`.
-    The `experiment` should be a mapping with minimal key-value pairs:
-      - I{WAVELENGTH} : wavelength in Angstroms
-      - I{DISTANCE} : distance to detector in mm
-    """
-    borders = numpy.array(borders)
-    borders.sort()
-    self.borders = borders
-    self.miller = miller
-    self.experiment = experiment
-
-    borders_res = vec_rho2res(borders)
-    bin_borders_rho = zip(borders[:-1], borders[1:])
-    bin_borders_rho = numpy.array(bin_borders_rho)
-    bin_borders_res = zip(borders_res[:-1], borders_res[1:])
-    bin_borders_res = numpy.array(bin_borders_res)
-    self.bin_borders_rho = bin_borders_rho
-    self.bin_borders_res = bin_borders_res
-    self.n_bins_used = len(bin_borders_rho)
-    d_spc = miller.d_spacings().data()
-    selections = []
-    for (d_max, d_min) in bin_borders_res:
-       sln = (d_spc <= d_max) & (d_spc >= d_min)
-       selections.append(sln)
-    self.selections = selections
-    counts = [sel.as_numpy_array().sum() for sel in self.selections]
-    self.counts = numpy.array(counts)
-    self.centers = (borders[:-1] + borders[1:]) / 2
-    self.centers_res = vec_rho2res(self.centers)
-    self.centers_2theta = vec_rho2twotheta(self.centers, experiment)
-  def bin_selection(self, i):
-    """
-    Return the selection for bin `i`.
-    """
-    return self.selections[i]
-  def bin_d_range(self, i):
-    """
-    Return the max, min d_spacings for bin `i`.
-    """
-    return self.bin_borders_res[i]
-  def bin_rho_range(self, i):
-    """
-    Return the min and max :math:`\rho` for bin `i`.
-    """
-    return self.bin_borders_rho[i]
-  def bin(self, i):
-    """
-    Returns bin `i` selected from `self.miller`
-    """
-    return self.miller.select(self.selections[i])
-  def bin_data(self, i):
-    """
-    Returns the data of bin `i` selected from `self.miller`.
-    """
-    return self.miller.select(self.selections[i]).data()
-  def data(self):
-    """
-    Returns th data of each bin selected from `self.miller` as a
-    :class:`numpy.ndarray`.
-    """
-    return [self.bin_data(i) for i in self.range_used()]
-  def count(self, i):
-    """
-    Return the number of reflections in bin `i`.
-    """
-    return self.counts[i]
-  def range_used(self):
-    """
-    Return an `xrange` generator for the bins used in `self`.
-    """
-    return xrange(self.n_bins_used)
-  def binned(self, miller):
-    """
-    Given a :class:`cctbx.miller.array`, `miller`, return the
-    :class:`Binner` for it.
-    """
-    return self.__class__(self.borders, miller)
-  def bin_area(self, i):
-    """
-    Return the area on the detector for bin `i`.
-    """
-    limits = self.bin_d_range(i)
-    return bin_area(limits, self.experiment)
-  def mean_bin_data(self, i):
-    """
-    Return the mean of the data of bin `i`.
-    """
-    return flex.mean(self.bin_data(i))
-  def mean_data(self):
-    """
-    Return the mean of the data of each bin.
-    """
-    return [self.mean_bin_data(i) for i in self.range_used()]
-  def area_normalized_summed_bin_data(self, i):
-    """
-    Return the sum of the data of bin `i` divided by the bin area.
-    """
-    tot = flex.sum(self.bin_data(i))
-    return tot / self.bin_area(i)
-  def area_normalized_summed_data(self):
-    """
-    Returns the sum of the data of each bin divided by the area of the bin
-    as a :class:`numpy.ndarray`.
-    """
-    a = [self.area_normalized_summed_bin_data(i) for i in self.range_used()]
-    return numpy.array(a)
-  def summed_data(self):
-    """
-    Returns the sum of the data for each bin as a :class:`numpy.ndarray`.
-    """
-    return numpy.array([flex.sum(d) for d in self.data()])
-  def bin_center(self, i):
-    """
-    Return the center of bin `i` in :math:`\rho`.
-    """
-    return self.centers[i]
-  def bin_d_center(self, i):
-    """
-    Return the center of bin `i` in d-spacing.
-    """
-    return self.centers_res[i]
-  def bin_2theta_center(self, i):
-    """
-    Return the center of bin `i` in 2*theta.
-    """
-    return self.centers_2theta[i]
- 
 
 
 LOCS_DICT = { 'd-star': radpx2dstar,
@@ -2028,7 +1893,13 @@ def scale_several(config, Cs, T, general, outlet, table):
   This function modifies `Cs`.
   """
   res_min, res_max = config['roi']
-  params = config['scale_parameters']
+  params = config.get('scale_parameters', None)
+  if params is None:
+    do_score = False
+    save_score = False
+  else:
+    do_score = True
+    save_score = config['save_score']
   buoyancy = config.get('buoyancy')
   N = config['roi_bins']
   if res_min is None:
@@ -2041,24 +1912,26 @@ def scale_several(config, Cs, T, general, outlet, table):
   outlet("  Scaled To: %s" % T['image_key'])
   outlet(hline)
   outlet(hline)
-  if len(Cs) == 1:
-    config['save_score'] = config['save_score'] and True
-  else:
-    showwarning('Scaling multiple spectra.',
-                'More than one spectrum to scale.\n\n' +
-                'Scores will not be saved.',
-                parent=outlet.parent)
-    config['save_score'] = False
+  if do_score:
+    if len(Cs) == 1:
+      config['save_score'] = save_score and True
+    else:
+      showwarning('Scaling multiple spectra.',
+                  'More than one spectrum to scale.\n\n' +
+                  'Scores will not be saved.',
+                  parent=outlet.parent)
+      config['save_score'] = False
   for C in Cs:
     scaled = scale(C, T, N, res_min, res_max, params, buoyancy)
-    outlet("== %s" % C['image_key'])
-    outlet("==      score: %09.7f" % C['scaled score'])
-    outlet("==      R**2: %09.7f" % C['scaled Rsq'])
-    outlet("==      worst: %09.7f" % C['scaled worst'])
-    tmplt = "==      alpha: %(alpha)f, beta: %(beta)f, B: %(B)f"
-    outlet(tmplt % C['scaled params'])
-    outlet(hline)
-    if config['save_score']:
+    if do_score:
+      outlet("== %s" % C['image_key'])
+      outlet("==      score: %09.7f" % C['scaled score'])
+      outlet("==      R**2: %09.7f" % C['scaled Rsq'])
+      outlet("==      worst: %09.7f" % C['scaled worst'])
+      tmplt = "==      alpha: %(alpha)f, beta: %(beta)f, B: %(B)f"
+      outlet(tmplt % C['scaled params'])
+      outlet(hline)
+    if save_score:
       if 'image' not in T:
         msg = "Reference for 'scaled_to' should be an image."
         raise RadialXError(msg)
@@ -2081,11 +1954,12 @@ def scale_several(config, Cs, T, general, outlet, table):
         spectrum = numpy.transpose(spectrum)
         spectrum = serialize_array(spectrum)
         spectrum = base64.b64encode(spectrum)
-      json_config = json.dumps(config)
-      json_general = json.dumps(general)
-      table.insert(model=model, image_key=image_key, score=score,
-                   Rsq=Rsq, alpha=alpha, beta=beta, B=B,
-                   image=json_image, pdb=pdb, spectrum=spectrum,
-                   config=json_config, general=json_general)
-      table.commit()
+      if table is not None:
+        json_config = json.dumps(config)
+        json_general = json.dumps(general)
+        table.insert(model=model, image_key=image_key, score=score,
+                     Rsq=Rsq, alpha=alpha, beta=beta, B=B,
+                     image=json_image, pdb=pdb, spectrum=spectrum,
+                     config=json_config, general=json_general)
+        table.commit()
   return Cs
