@@ -2,10 +2,13 @@
 PYTHON = /usr/local/bin/python
 ECHO = echo
 
-# directories
+# installation root prefix
+PREFIX = /usr/local
 
-# installation root
-ROOT = /usr/local
+# cctbx.python
+CCTBX_PYTHON = /usr/local/cctbx-svn/build/bin/cctbx.python
+
+# build directories
 
 # documentation source
 DOCDIR = docs
@@ -21,4 +24,3 @@ DOCDEST = .
 
 # name of template file for license
 LICENSE_TEMPLATE = LICENSE-BSD.tmplt
-
