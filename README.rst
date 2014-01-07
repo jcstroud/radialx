@@ -12,17 +12,17 @@ x-ray powder diffraction patterns from models.
 At present, the only documented functionalities are
 
 1. The simulation of powder diffraction patterns
-   from PDB files using the utility called ``powderx``.
+   from PDB files using the utility called **powderx**.
 
    If you wish to create simulated powder diffraction
    patterns, please see the documentation at
    http://pythonhosted.org/radialx/.
 
 2. Displaying of diffraction image header information
-   using the utility called ``headerx``.
+   using the utility called **headerx**.
 
-Other, undocumented, functionality correspond to "modes" of the
-utility called ``profilex``.
+Other, undocumented, functionalities correspond to "modes" of the
+utility called **profilex**:
 
 1. *centering*: Finding the centers of powder diffraction images
    in adxv_ binary format.
@@ -37,7 +37,9 @@ utility called ``profilex``.
 It is hoped that the entire RadialX package
 will be fully documented one day.
 
+
 .. _adxv: http://www.scripps.edu/~arvai/adxv.html
+
 
 Home Page & Repository
 ----------------------
@@ -51,47 +53,115 @@ Repository: https://github.com/jcstroud/radialx
 
 Installation
 ------------
+
 Dependencies
 ~~~~~~~~~~~~
 
+pip & setuptools
+++++++++++++++++
+
 The installation of RadialX and many other python packages will
 be made easier by `pip`_. So, before going any further towards
-installation, it is advisable to visit
-follow the `pip installation instructions`_, including the
-installation of Setuptools, which is essential.
+installation, it is advisable to follow the
+`pip installation instructions`_, including the
+installation of Setuptools described therein, which is essential.
+
+CCTBX
++++++
+
+At this point the `CCTBX package`_ is ``only`` needed to
+simulate powder diffraction patterns with the **powderx** utility.
+
+For **powderx**, it will be necessary to have the full CCTBX package installed
+and the ``cctbx.python`` executable in your path. `Downloads are available_`
+for numerous operating systems, including Mac OS X, Windows 7 & XP, and
+several flavors of Linux. Additionally, it is possible to build
+CCTBX from a source bundle or, for the more ambitious,
+the SVN repository.
+
+Because of the unique python interpreter behavior required by CCTBX, it is
+necessary to have all dependencies (except CCTBX itself) installed both
+to the ``cctbx.python`` interpreter and to the a non-CCTBX python
+interpreter (e.g. at ``/usr/local/bin/python``).
+
+The difficulty here might be in using pip with CCTBX, if
+you are using one of the pre-built CCTBX distributions
+called "cctbx+Python" or "cctbx plus",
+wherein the CCTBX distribution python
+will be different from your system python.
+
+One way to overcome this difficulty is simply to install all of the
+packages twice, once to the CCTBX python
+and once to the system python.
+
+Installing to the system python interpreter is easy with pip.
+For example, to install the pyfscache_ package::
+
+  % sudo pip install pyfscache
+
+Note that "``%``" is the prompt and is not actually typed.
+
+For the CCTBX python, things are slightly more complicated. First, when
+following the `pip installation instructions`_, use ``cctbx.python``
+with ``ez_setup.py`` and ``get-pip.py``. For example::
+
+  % sudo cctbx.python ex_setup.py
+  % sudo cctbx.python get-pip.py
+
+Once this latter command completes, you'll see among the final lines of output
+something similar to::
+
+  Installing pip script to /opt/cctbx/Python.framework/Versions/2.7/bin
+
+The directory path in this output points to the location of pip,
+which can be used directly. Using pyfscache_ as an example::
+
+  % sudo /opt/cctbx/Python.framework/Versions/2.7/bin/pip install pyfscache
+
+.. _`pyfscache`: https://pypi.python.org/pypi/pyfscache/
 
 
-The `CCTBX package`_ is needed to simulate powder diffraction patterns.
-Thus, it will be necessary to have the full CCTBX package installed
-and the ``cctbx.python`` executable in your path.
+Other Dependencies
+++++++++++++++++++
 
 Other python dependencies are (in alphabetical order):
 
-  - configobj
-  - numpy
-  - phyles
-  - pil
-  - PyDBLite
-  - pyfscache
-  - pygmyplot
-  - pyyaml
-  - scipy
+  - configobj_
+  - numpy_
+  - phyles_
+  - PIL_
+  - PyDBLite_
+  - pyfscache_
+  - pygmyplot_
+  - pyyaml_
+  - scipy_
 
-The availability of each of these packages will be checked
-during the make from the ``setup.py`` script.
-Most can be installed by the python package
+Most, if not all, of these dependencies can be installed by the python package
 manager called `pip`_, if not already present on your system.
-
+The availability of each of these packages will be checked
+during the `build`_ of RadialX by the ``setup.py`` script.
 
 .. _`pip installation instructions`: http://www.pip-installer.org/en/latest/installing.html
 .. _`CCTBX package`: http://cctbx.sourceforge.net/
+.. _`Downloads are available`: http://cci.lbl.gov/cctbx_build/
 .. _`pip`: https://pypi.python.org/pypi/pip
+.. _`configobj`: https://pypi.python.org/pypi/configobj/
+.. _`numpy`: http://www.numpy.org/
+.. _`phyles`: https://pypi.python.org/pypi/phyles/
+.. _`PIL`: http://www.pythonware.com/products/pil/
+.. _`PyDBLite`: http://www.pydblite.net/
+.. _`pygmyplot`: https://pypi.python.org/pypi/pygmyplot
+.. _`pyyaml`: http://pyyaml.org/
+.. _`scipy`: http://scipy.org/
 
 Download
 ~~~~~~~~
 
-The best way to obtain RadialX is to download the source
-code from the GitHub repository:
+Because of the CCTBX dependency, it is not yet recommended
+to install RadialX by using `pip`_.
+
+For now, the best way to obtain RadialX is to download the source
+code from the GitHub repository::
 
    % git clone https://github.com/jcstroud/radialx.git
 
@@ -112,6 +182,9 @@ by the ``PREFIX`` setting is in your path.
 For example, if ``PREFIX`` is set to ``/usr/local``, then
 ensure that ``/usr/local/bin`` is in your path.
 
+These settings only affect how RadialX is built and where it is installed,
+not how it will execute once installed.
+
 Build and installation is easy::
 
    % cd radialx
@@ -123,7 +196,75 @@ the utilities (``powderx``, ``headerx``, and ``profilex``) into
 the appropriate location, specified by the ``PREFIX`` setting.
 
 
-Example
--------
+Examples
+--------
 
-Example of how to use it and what it can do.
+Complete examples of how to use all of the RadialX utilites are
+currently in the ``test`` directory of the `source distribution`_.
+
+headerx
+~~~~~~~
+
+The **headerx** utility is the most straightforward to use. First,
+convert an image file from the synchrotron or a home-source detector
+to and adxv_ binary file. This function is found under the
+``File ==> Save..`` menu. Ensure that the checkboxes of the
+for "Image" and "Binary" are checked in the *Adxv Save*
+window. I prefer to name these adxv binary files with the "``.bin``"
+extension.
+
+Using a filed called ``stsaa_119a_0_003.bin`` as an example::
+
+  % headerx stsaa_119a_0_003.bin
+
+This file is in the ``test/testdata`` directory and yields the following
+output::
+
+               ===============  ===============
+                  HEADER_BYTES: 1024
+                           DIM: 2
+                    BYTE_ORDER: little_endian
+                          TYPE: unsigned_short
+                         SIZE1: 3072
+                         SIZE2: 3072
+                    PIXEL_SIZE: 0.10259
+                           BIN: 2x2
+                           ADC: slow
+                   DETECTOR_SN: 911
+                      BEAMLINE: 24_ID_C
+                          DATE: Mon Jun  8 02:28:42 2009
+                          TIME: 10.0
+                      DISTANCE: 400.0
+                     OSC_RANGE: 1.0
+                           PHI: 47.0
+                     OSC_START: 47.0
+                      TWOTHETA: 0.0
+                          AXIS: phi
+                    WAVELENGTH: 0.9793
+                 BEAM_CENTER_X: 157.11
+                 BEAM_CENTER_Y: 156.05
+                  TRANSMISSION: 10.0871
+                          PUCK: C
+                        SAMPLE: 2
+                      RING_CUR: 102.2
+                     RING_MODE: 0+24x1, ~1.3% Coupling
+                  MD2_APERTURE: 30
+                      UNIF_PED: 1500
+          CCD_IMAGE_SATURATION: 65535
+               ===============  ===============
+                   Sanity Test 
+                      4.7 Angs: 2357,1550 px
+                      4.7 Angs: 1531,2376 px
+               ===============  ===============
+
+The "Sanity Test" is based on the adxv beam center. Hovering
+the mouse over the given pixels in adxv should produce the given
+resolutions.
+
+powderx
+~~~~~~~
+
+The **powderx** uitlity 
+
+
+.. _`source distribution`: Download_
