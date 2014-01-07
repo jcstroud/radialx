@@ -1,3 +1,5 @@
+%YAML 1.2
+---
 settings :
   # pdb file from which to make a spectrum
   pdb_name : "../testdata/stg06-phi06.4-wc-03.8-rc1.0-m4-12.pdb"

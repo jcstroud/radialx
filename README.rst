@@ -264,7 +264,17 @@ resolutions.
 powderx
 ~~~~~~~
 
-The **powderx** uitlity 
+The **powderx** utility simulates powder diffraction patterns
+from PDB files. These patterns are presented graphically and
+also written to a file name designated by the user.
+
+A yaml_ formatted config file controls the behavior of **powderx** and
+this config file is specified as an argument on the command line::
+
+  powderx powder.yml
+
+An example config file named ``powder.yml`` is in the ``test/test-powder``
+directory of the source distribution.
 
 
 .. _`source distribution`: Download_
