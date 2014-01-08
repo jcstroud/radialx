@@ -32,9 +32,13 @@ from iotbx import mtz, pdb
 logging.debug('importing flex')
 from scitbx.array_family import flex
 
+from _version import __version__
+
 class PowderError(Exception):
   pass
-class GUIError(Exception):
+class GUIError(PowderError):
+  pass
+class VersionError(PowderError):
   pass
 
 class Binner(object):
@@ -183,11 +187,14 @@ def plot_powder(sf, config, pltcfg, experiment, master=None,
   Args:
     `sf`:
        structure factors as a :class:`cctbx.miller.array`
+    `pltcfg`:
+       mapping object with keys of
+         - ``plot_bins``: number of bins for the plot
+         - ``n_ticks``: number of ticks for the x-axis
     `config`:
        mapping object with keys of
          - ``d_max``: maximum d-spacing in Angstroms
          - ``d_min``: minimum d-spacing in Angstroms
-         - ``plot_bins``: number of bins
     `experiment`:
        mapping object with keys of
          - ``'WAVELENGTH'``: x-ray wavelength Angstroms
@@ -205,8 +212,8 @@ def plot_powder(sf, config, pltcfg, experiment, master=None,
 
   d_max = config['d_max']
   d_min = config['d_min']
-  plot_bins = config['plot_bins']
-  n_ticks = config['n_ticks']
+  plot_bins = pltcfg['plot_bins']
+  n_ticks = pltcfg['n_ticks']
 
   I = sf.intensities()
   borders = _radialx.make_borders_rho(plot_bins, d_max, d_min, experiment)
@@ -227,7 +234,13 @@ def plot_powder(sf, config, pltcfg, experiment, master=None,
   plot.axes.set_xlabel('Resolution ($\\AA$)')
   plot.axes.set_ylabel('intensity')
 
-  _radialx.plot_adjust(plot, pltcfg)
+
+  adj = {"left": pltcfg['left'],
+         "right": pltcfg['right'],
+         "top": pltcfg['top'],
+         "bottom": pltcfg['bottom']}
+
+  _radialx.plot_adjust(plot, adj)
 
   plot.canvas.draw()
 
@@ -239,12 +252,17 @@ def powder_main():
   else:
     y = yaml.load(open(sys.argv[1]).read())
 
-  config = y['settings']
+  uicfg = y['general']
+  config = y['simulation']
   experiment = y['experiment']
   pltcfg = y['plot']
 
-  log_level = getattr(logging, config['log_level'])
-  print log_level
+  powderx_version = __version__.rsplit(".", 1)[0]
+  if uicfg['powderx_version'] != str(powderx_version):
+    tplt = "Config file should be version '%s'."
+    raise VersionError(tplt % powderx_version)
+
+  log_level = getattr(logging, uicfg['verbosity'])
   logger = phyles.basic_logger(__name__, level=log_level)
 
   tk = TK.Tk()
@@ -264,7 +282,7 @@ def powder_main():
   structure = pdb_inp.xray_structure_simple()
   sf_pdb = structure.structure_factors(d_min=config['d_min']).f_calc()
 
-  ec_x = config['extinction_correction_x']
+  ec_x = config.get("extinction_correction_x", None)
 
   if ec_x is not None:
     # sf_mtz = sf_mtz.apply_shelxl_extinction_correction(ec_x,
@@ -286,14 +304,29 @@ def powder_main():
                            v=config['v'],
                            w=config['w'],
                            # B=config['B'],
-                           pattern_bins=config['pattern_bins'],
-                           peakwidths=config['peakwidths'],
+                           pattern_bins=config['pattern_shells'],
+                           peakwidths=config['peak_widths'],
                            bin_reflections=config['bin_reflections'])
 
   p = pygmyplot.xy_plot(numpy.degrees(pattern[0]),
                         pattern[1], master=tk)
+  p.axes.set_xlabel("$2\\theta$ (degrees)")
+  p.axes.set_ylabel("Integrated Intensity")
 
-  _radialx.write_spectrum(config['spectrum_name'],
+  adj = {"left": pltcfg['left'],
+         "right": pltcfg['right'],
+         "top": pltcfg['top'],
+         "bottom": pltcfg['bottom'],
+         "wspace": None,
+         "hspace": None}
+
+  _radialx.plot_adjust(p, adj)
+
+  tk.title(pltcfg['window_name'])
+
+  p.refresh()
+
+  _radialx.write_spectrum(config['pattern_name'],
                           config['pdb_name'],
                           pattern[0], pattern[1], False)
 
@@ -321,8 +354,8 @@ def integrated_intensity(miller, wavelength, d_max, d_min,
   - `wavelength`: wavelength in Angstroms
   - `d_max`: maximum d-spacing in Angstroms
   - `d_min`: minimum d-spacing in Angstroms
-  - `v`: :math:`\text{FWHM} = v + w\tan\theta` in degrees
-  - `w`: :math:`\text{FWHM} = v + w\tan\theta` in degrees
+  - `v`: :math:`\\text{FWHM} = v + w\\tan\\theta` in degrees
+  - `w`: :math:`\\text{FWHM} = v + w\\tan\\theta` in degrees
   - `N`: number of points in simulated spectrum
   - `peakwidths`: number of peak width-at-half-height over which to
     integrate a reflection

@@ -1,5 +1,5 @@
 model : "../testdata/stg06-phi06.4-wc-03.8-rc1.0-m4-12.pdb"
-spectrum :
+pattern :
   # [   2-theta, intensity ]
   - [  5.205029, 0.5671240 ]
   - [  5.285076, 0.5882654 ]

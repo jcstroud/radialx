@@ -997,7 +997,7 @@ def load_spectra(config, spectra):
     key = (spec['filepath'],)
     spectrum = yaml.load(open(spec['filepath']))
     if isinstance(spectrum, dict):
-      spectrum = spectrum['spectrum']
+      spectrum = spectrum['pattern']
     spectrum = numpy.transpose(spectrum)
     bin_middles_2th = spectrum[0,1:-1]
     bin_borders_2th = (spectrum[0,1:] + spectrum[0,:-1]) / 2
@@ -1681,7 +1681,7 @@ def format_spectrum(model_name, twothetas, intensities, degrees):
   Returns a yaml string with the following format::
 
      model : model.pdb
-     spectrum :
+     pattern :
        # [   2-theta, intensity ]
        - [  0.000000, 0.0074386 ]
        - [  0.010179, 0.0075088 ]
@@ -1697,7 +1697,7 @@ def format_spectrum(model_name, twothetas, intensities, degrees):
   """
   spectrum = []
   spectrum.append('model : "%s"' % model_name)
-  spectrum.append('spectrum :')
+  spectrum.append('pattern :')
   spectrum.append('  # [   2-theta, intensity ]')
   if not degrees:
     twothetas = numpy.degrees(twothetas)
@@ -1714,7 +1714,7 @@ def write_spectrum(spectrum_file, model_name,
   following format::
 
      model : model.pdb
-     spectrum :
+     pattern :
        # [   2-theta, intensity ]
        - [  0.000000, 0.0074386 ]
        - [  0.010179, 0.0075088 ]

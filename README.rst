@@ -9,6 +9,9 @@ RadialX is a python package for working with x-ray
 powder diffraction data and for simulating
 x-ray powder diffraction patterns from models.
 
+Documented Functionalities
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 At present, the only documented functionalities are
 
 1. The simulation of powder diffraction patterns
@@ -21,22 +24,28 @@ At present, the only documented functionalities are
 2. Displaying of diffraction image header information
    using the utility called **headerx**.
 
+Undocumented Functionalities
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Other, undocumented, functionalities correspond to "modes" of the
 utility called **profilex**:
 
-1. *centering*: Finding the centers of powder diffraction images
-   in adxv_ binary format.
-2. *averaging*: Radial integration and/or averaging of one or
-   more experimental powder diffraction patterns in adxv_ binary format.
-3. *averaging*: Scaling of several powder experimental or simulated
-   diffraction patterns to a single experimental or simulated pattern.
-4. *difference*: Calculating the difference of two scaled
-   radially integrated and/or averaged experimental
-   powder diffraction patterns.
+- *centering*: Finding the centers of powder diffraction images
+  in adxv_ binary format.
+- *averaging*: Radial averaging of one or
+  more experimental powder diffraction patterns in adxv_ binary format.
+- *averaging*: Scaling of several powder experimental or simulated
+  diffraction patterns to a single experimental or simulated pattern.
+- *difference*: Calculating the difference of two scaled
+  radially integrated experimental powder diffraction patterns.
 
 It is hoped that the entire RadialX package
-will be fully documented one day.
+will be fully documented soon.
 
+Note that the *averaging* mode of **profilex** currently calculates
+only average pixel values and not integrated pixel values. It is
+not suggested to use the **profilex** ``averaging`` and
+``difference`` modes until **profilex** performs integration (soon).
 
 .. _adxv: http://www.scripps.edu/~arvai/adxv.html
 
@@ -64,16 +73,16 @@ The installation of RadialX and many other python packages will
 be made easier by `pip`_. So, before going any further towards
 installation, it is advisable to follow the
 `pip installation instructions`_, including the
-installation of Setuptools described therein, which is essential.
+installation of setuptools described therein, which is essential.
 
 CCTBX
 +++++
 
-At this point the `CCTBX package`_ is ``only`` needed to
+At this point the `CCTBX package`_ is *only* needed to
 simulate powder diffraction patterns with the **powderx** utility.
 
 For **powderx**, it will be necessary to have the full CCTBX package installed
-and the ``cctbx.python`` executable in your path. `Downloads are available_`
+and the ``cctbx.python`` executable in your path. `Downloads are available`_
 for numerous operating systems, including Mac OS X, Windows 7 & XP, and
 several flavors of Linux. Additionally, it is possible to build
 CCTBX from a source bundle or, for the more ambitious,
@@ -81,10 +90,10 @@ the SVN repository.
 
 Because of the unique python interpreter behavior required by CCTBX, it is
 necessary to have all dependencies (except CCTBX itself) installed both
-to the ``cctbx.python`` interpreter and to the a non-CCTBX python
+to the ``cctbx.python`` interpreter and to a system python
 interpreter (e.g. at ``/usr/local/bin/python``).
 
-The difficulty here might be in using pip with CCTBX, if
+The difficulty here might be in using pip with CCTBX if
 you are using one of the pre-built CCTBX distributions
 called "cctbx+Python" or "cctbx plus",
 wherein the CCTBX distribution python
@@ -113,7 +122,7 @@ something similar to::
 
   Installing pip script to /opt/cctbx/Python.framework/Versions/2.7/bin
 
-The directory path in this output points to the location of pip,
+The directory path in this output points to the location of CCTBX's pip,
 which can be used directly. Using pyfscache_ as an example::
 
   % sudo /opt/cctbx/Python.framework/Versions/2.7/bin/pip install pyfscache
@@ -196,8 +205,8 @@ the utilities (``powderx``, ``headerx``, and ``profilex``) into
 the appropriate location, specified by the ``PREFIX`` setting.
 
 
-Examples
---------
+Usage
+-----
 
 Complete examples of how to use all of the RadialX utilites are
 currently in the ``test`` directory of the `source distribution`_.
@@ -207,8 +216,8 @@ headerx
 
 The **headerx** utility is the most straightforward to use. First,
 convert an image file from the synchrotron or a home-source detector
-to and adxv_ binary file. This function is found under the
-``File ==> Save..`` menu. Ensure that the checkboxes of the
+to an adxv_ binary file. This function is found under the
+``File`` → ``Save..`` menu of adxv_. Ensure that the checkboxes
 for "Image" and "Binary" are checked in the *Adxv Save*
 window. I prefer to name these adxv binary files with the "``.bin``"
 extension.
@@ -257,16 +266,20 @@ output::
                       4.7 Angs: 1531,2376 px
                ===============  ===============
 
-The "Sanity Test" is based on the adxv beam center. Hovering
-the mouse over the given pixels in adxv should produce the given
-resolutions.
+The "Sanity Test" is based on the header beam center. Hovering
+the mouse over the given pixels in adxv should produce approximately
+the given resolutions (depending on what adxv thinks is the beam center).
 
 powderx
 ~~~~~~~
 
 The **powderx** utility simulates powder diffraction patterns
 from PDB files. These patterns are presented graphically and
-also written to a file name designated by the user.
+also written to a file name designated by the user, as described
+below.
+
+The powderx Config File
++++++++++++++++++++++++
 
 A yaml_ formatted config file controls the behavior of **powderx** and
 this config file is specified as an argument on the command line::
@@ -274,7 +287,164 @@ this config file is specified as an argument on the command line::
   powderx powder.yml
 
 An example config file named ``powder.yml`` is in the ``test/test-powder``
-directory of the source distribution.
+directory of the source distribution. The powder config file will be
+referred to as "``powder.yml``" herein. The provided example file
+has comments that briefly describe each parameter. It is suggested just
+to copy and modify the example ``powder.yml`` file from the
+``test/test-powder`` directory of the source distribution because
+its format may change slightly between versions of RadialX.
+
+An introduction to the `yaml config format`_ is given below and provides
+everything users need to know about yaml to write a config file
+for **powderx**. For the curious, the full yaml specification (version 1.2) can
+be found at http://www.yaml.org/spec/1.2/spec.html.
+
+The ``powder.yml`` file has three sections:
+
+- ``general``: parameters that effect the user experience
+- ``simulation``: parameters for the powder diffraction simulation
+- ``plot``: parameters that modify the appearance of the plot
+- ``experiment``: parameters of the simulated diffraction experiment
+
+A detailed discussion of each section follows.
+
+general
+#######
+
+Parameters in the ``general`` section effect the user experience to
+a limited extent.
+
+- ``powderx_version``: version number of the **powderx** program;
+  it is critical for the config file version to match the version
+  of the **powderx** program
+- ``verbosity``: controls how verbose the output is;
+  values may be ``DEBUG`` (most verbose), ``INFO``, ``WARNING``,
+  ``ERROR``, or ``CRITICAL`` (least verbose)
+
+simulation
+##########
+
+Of the three sections in ``powder.yml``, the ``simulation`` section
+has the most parameters. Most of these parameters are self-explanatory.
+
+- ``pdb_name``: pdb file from which to make a simulated pattern
+- ``pattern_name``: the simulated pattern is written to a file
+  of this name; the `simulated pattern format`_ is described below
+- ``d_max``: maximum d-spacing (lowest resolution) for the
+  simulation, given in Ångstroms.
+- ``d_min``: minimum d-spacing (highest resolution) for the
+  simulation, given in Ångstroms.
+- ``extinction_correction_x``: an optional parameter refined during
+  extinction correction, which is applied to the simulated pattern;
+  this correction is discussed in the SHELXL 97 manual on page 7-7
+  (http://shelx.uni-ac.gwdg.de/SHELX/shelx97.pdf); use ``null``
+  or ``0`` if extinction correction is not desired
+- ``v`` & ``w``: for the summation of reflections, the full-width
+  at half-max (FWHM) of a Lorentzian diffraction peak is proportional
+  to v + w tan(θ)
+- ``pattern_shells``: number of points in the simulated pattern;
+  each point represents the integrated intensity of the shell
+- ``peak_widths``: the intensity of a reflection is taken to be
+  0 beyond this number of FWHM from the center of the Lorentzian
+  reflection peak
+- ``bin_reflections``: reflections may be binned by resolution such
+  that all the reflections within a shell
+  (specified by ``pattern_shells``) are taken to have the
+  same peak shape (i.e. the same FWHM),
+  making the calculations significantly faster at
+  the expense of a small decrease in accuracy;
+  values may be ``True`` or ``False``
+
+plot
+####
+
+The ``plot`` section controls the appearance of the plot.
+
+- ``window_name``: name of the plot window
+- ``left``, ``right``, ``top``, ``bottom``: changes the
+  appearance of the plots # margins between plot and page border;
+  note that axes labels are in the margins
+- ``plot_bins``: the data is rebinned simply for the purposes
+  of the plot; the plot will have ``plot_bins`` points
+- ``n_ticks``: number of ticks on the x-axis; labeled
+  by 2θ.
+
+
+experiment
+##########
+
+A simulated diffraction pattern is the result of a simulated
+experiment. The parameters of the ``experiment`` section specify
+simulated experimental details.
+
+- ``WAVELENGTH``: radiation wavelength
+- ``DISTANCE``: the distance from the sample to the detector
+
+
+File Formats
+------------
+
+Simulated Pattern Format
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+The simulated integrated diffraction pattern is written to a yaml
+formatted file specified by the ``pattern_name`` setting
+in the ``simulation`` section of ``powder.yml``. In yaml terms, the
+pattern is stored as a top-level list of [2-theta, intensity] pairs.
+A python program can make a 2-D numpy_ array from the pattern easily
+if numpy_ (http://numpy.scipy.org/) and pyYAML_ (http://pyyaml.org/)
+are installed.  For example, if the pattern is stored in the
+file "``pattern.yml``"::
+
+      import numpy
+      import yaml
+      ary = numpy.array(yaml.load(open('spectrum.yml')))['spectrum']
+
+The array called "``ary``" is a Nx2 array, with each of the N rows being a
+[2-theta, intensity] pair.
+
+More generally, the pattern starts on the fourth line of the yaml
+file and each data line conforms to the following FORTRAN
+formatted read::
+
+      REAL X, Y
+      READ '(5X, F10.0, 1X, F10.0)', X, Y
+
+The following are the first six lines of a yaml simulated powder diffraction
+pattern file::
+
+      model : "../testdata/stg06-phi06.4-wc-03.8-rc1.0-m4-12.pdb"
+      spectrum :
+        # [   2-theta, intensity ]
+        - [  5.205029, 0.5671240 ]
+        - [  5.285076, 0.5882654 ]
+        - [  5.365124, 0.6002413 ]
+
+.. _pyYAML: http://pyyaml.org/
+
+
+YAML Config Format
+~~~~~~~~~~~~~~~~~~
+
+The ``powder.yml`` file has a simple structure, which can be understood
+from the following listing::
+
+   %YAML 1.2
+   ---
+   section_1 :
+      parameter_a : value_a
+      parameter_b : value_b
+   section_2 :
+      parameter_c : value_c
+
+Here, the first line is optional and indicates to a yaml parser that
+the file conforms to the yaml specification version 1.2. The second
+line of three dashes indicates the beginning of a yaml document.
+Each section name is on a line by itself and followed by a colon.
+Each parameter key-value pair is *indented* relative to 
+the section names. A colon separates the parameter key from its
+associated value.
 
 
 .. _`source distribution`: Download_
+.. _`yaml`: http://www.yaml.org/

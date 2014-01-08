@@ -1,11 +1,20 @@
 %YAML 1.2
 ---
-settings :
-  # pdb file from which to make a spectrum
+general :
+  # version number of the powderx program
+  powderx_version : "0.7"
+  # log_level can be "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"
+  verbosity : "ERROR"
+
+simulation :
+  # version number of the powderx program
+  powderx_version : 0.7
+
+  # pdb file from which to make a simulated pattern
   pdb_name : "../testdata/stg06-phi06.4-wc-03.8-rc1.0-m4-12.pdb"
 
-  # the output spectrum as a yaml file
-  spectrum_name : "stg06-phi06.4-wc-03.8-rc1.0-m4-12.yml"
+  # the output pattern as a yaml file
+  pattern_name : "stg06-phi06.4-wc-03.8-rc1.0-m4-12.yml"
 
   # resolution range in d-spacings
   # d_max: maximum d-spacing (lowest resolution)
@@ -13,45 +22,41 @@ settings :
   # d_min: minimum d-spacing (highest resolution)
   d_min : 4.2
 
-  # some plot parameters
-  plot_bins : 100
-  n_ticks : 13
-
   # see SHELXL 97 manual chapter 7 page 7
   # http://shelx.uni-ac.gwdg.de/SHELX/shelx97.pdf
   # use null for no correction
   extinction_correction_x : null
 
-  # values should be one of
-  # - area_normalized_summed_data (i.e. average pixel intensity)
-  # - mean_data (mean value of each bin)
-  # - summed_data (appropriate for integration)
-  values : "summed_data"
-
-  # log_level can be "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"
-  log_level : "INFO"
-
   # v (0.08) and w (0.02) (degs) for half-max width: v + w tan(theta)
   v : 0.08
   w : 0.02
-  # number of points in pattern (200)
-  # unrelated to the bin_reflections setting
-  pattern_bins : 200
+  # number of points in pattern
+  pattern_shells : 200
   # number of peak widths over which to integrate each reflection (3.0)
-  peakwidths : 3
+  peak_widths : 3
   # if True, the reflections will be binned into the number of 
   # bins specified by pattern_bins to make the integration
   # significantly faster but with a small decrease in accuracy
   bin_reflections : True
 
 plot :
+
+  # name of the plot window
+  window_name : "stg06"
+
   # changes the appearance of the plots
   # margins between plot and page border
   # note that axes labels are in the margins
-  left : 0.15
+  left : 0.12
   right : 0.95
-  top : 0.95
+  top : 0.93
   bottom : 0.15
+
+  # data is re-binned to plot_bins points in the plot
+  plot_bins : 100
+  # number of tick lines on the x-axis
+  n_ticks : 13
+
 
 experiment :
   WAVELENGTH : 1.54178
