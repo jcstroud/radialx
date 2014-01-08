@@ -44,6 +44,11 @@ utility called **profilex**:
 - *difference*: Calculating the difference of two scaled
   radially integrated experimental powder diffraction patterns.
 
+Although **profilex** is fully functional and heavily tested, its
+user interface (i.e. config file format, etc.) is very likely to
+change. For example, the modes will probably be split into different
+different utilities.
+
 It is hoped that the entire RadialX package
 will be fully documented soon.
 

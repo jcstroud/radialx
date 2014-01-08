@@ -4,7 +4,7 @@ general :
   # version number of the powderx program
   powderx_version : "0.7"
   # log_level can be "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"
-  verbosity : "ERROR"
+  verbosity : "INFO"
 
 simulation :
   # version number of the powderx program

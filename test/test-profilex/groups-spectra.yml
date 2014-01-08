@@ -24,6 +24,5 @@
 # only about images.
 spectra :
   simulated : 
-     - sim-01
-     - sim-02
+     - stg06
 

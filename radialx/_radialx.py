@@ -984,7 +984,6 @@ def recenter(general, config, image,
   return result
 
 def load_spectra(config, spectra):
-  raise SystemExit
   # this will pack up spectra as if they were images
   sm_fac = int(config.get('smoothing_factor', 20))
   min_w = int(config.get('min_window', 7))
@@ -1032,7 +1031,7 @@ def load_spectra(config, spectra):
     # meas['average Is'] = whys
     meas['std errors'] = None
     meas['sigma'] = meas['sum Is'].std()
-    meas['Is over sigma'] = meas['average Is'] / meas['sigma']
+    # meas['Is over sigma'] = meas['average Is'] / meas['sigma']
     meas['counts'] = None
     meas['bins'] = bins
     meas['bin middles px'] = bin_middles_px
