@@ -189,7 +189,7 @@ def plot_powder(sf, config, pltcfg, experiment, master=None,
        structure factors as a :class:`cctbx.miller.array`
     `pltcfg`:
        mapping object with keys of
-         - ``plot_bins``: number of bins for the plot
+         - ``plot_points``: number of bins for the plot
          - ``n_ticks``: number of ticks for the x-axis
     `config`:
        mapping object with keys of
@@ -212,8 +212,8 @@ def plot_powder(sf, config, pltcfg, experiment, master=None,
 
   d_max = config['d_max']
   d_min = config['d_min']
-  plot_bins = pltcfg['plot_bins']
-  n_ticks = pltcfg['n_ticks']
+  plot_bins = pltcfg['plot_points']
+  n_ticks = pltcfg['x_ticks']
 
   I = sf.intensities()
   borders = _radialx.make_borders_rho(plot_bins, d_max, d_min, experiment)

@@ -52,10 +52,10 @@ plot :
   top : 0.93
   bottom : 0.15
 
-  # data is re-binned to plot_bins points in the plot
-  plot_bins : 100
+  # data is re-binned to plot_points points in the plot
+  plot_points : 100
   # number of tick lines on the x-axis
-  n_ticks : 13
+  x_ticks : 13
 
 
 experiment :
