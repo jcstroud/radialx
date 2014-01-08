@@ -11,6 +11,9 @@ RadialX is a python package for working with x-ray
 powder diffraction data and for simulating
 x-ray powder diffraction patterns from models.
 
+The most complete documentation is available at
+http://pythonhosted.org/radialx/.
+
 Documented Functionalities
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -43,11 +46,6 @@ utility called **profilex**:
 
 It is hoped that the entire RadialX package
 will be fully documented soon.
-
-Note that the *averaging* mode of **profilex** currently calculates
-only average pixel values and not integrated pixel values. It is
-not suggested to use the **profilex** ``averaging`` and
-``difference`` modes until **profilex** performs integration (soon).
 
 .. _adxv: http://www.scripps.edu/~arvai/adxv.html
 

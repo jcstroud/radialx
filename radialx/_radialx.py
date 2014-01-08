@@ -282,6 +282,7 @@ def integrate(data, nbins, disc, minI=None,
       rjcts.append(idxs[:, rjct_idxs])
   sigma = numpy.std(numpy.concatenate(all_values))
   progress(msg, 1.0)
+  sums = numpy.array(means)
   means = numpy.array(means)
   stds = numpy.array(stds)
   ns = numpy.array(ns)
@@ -983,6 +984,7 @@ def recenter(general, config, image,
   return result
 
 def load_spectra(config, spectra):
+  raise SystemExit
   # this will pack up spectra as if they were images
   sm_fac = int(config.get('smoothing_factor', 20))
   min_w = int(config.get('min_window', 7))
@@ -1026,10 +1028,10 @@ def load_spectra(config, spectra):
     meas['image'] = spec
     meas['experiment'] = expt
     meas['spectrum'] = spectrum
-    # meas['sum Is'] = whys
-    meas['average Is'] = whys
+    meas['sum Is'] = whys
+    # meas['average Is'] = whys
     meas['std errors'] = None
-    meas['sigma'] = meas['average Is'].std()
+    meas['sigma'] = meas['sum Is'].std()
     meas['Is over sigma'] = meas['average Is'] / meas['sigma']
     meas['counts'] = None
     meas['bins'] = bins
@@ -1143,7 +1145,7 @@ def plot_image(plt, measurement, config, pltcfg, plot_number):
          - Is over sigma: {average Is} / sigma
          - counts: number of pixels for the bins
          - sigma: std error for all pixels after Chauvenet filtering
-         - bins: number of bins (same as length of average Is, etc)
+         - bins: number of bins (same as length of sum Is, etc)
          - bin middles px: middle of the bins as measured in pixels
          - bin borders px:  borders of the bins as measured in pixels
                             so there are bins+1 borders in the array
@@ -1173,12 +1175,14 @@ def plot_image(plt, measurement, config, pltcfg, plot_number):
 
   if 'scaled to' in measurement:
     bin_middles_px = measurement['scaled bmpx']
-    i_over_sigs = measurement['scaled']
+    # i_over_sigs = measurement['scaled']
+    sums = measurement['scaled']
     bois = measurement['scaled bois']
     bins = measurement['scaled bins']
   else:
     bin_middles_px = measurement["bin middles px"]
-    i_over_sigs = measurement["Is over sigma"]
+    # i_over_sigs = measurement["Is over sigma"]
+    sums = measurement['sum Is']
     bois = measurement["bins of interest"]
     bins = measurement["bins"]
 
@@ -1218,11 +1222,11 @@ def plot_image(plt, measurement, config, pltcfg, plot_number):
   tick_locs = [locs_func(px, experiment) for px in bin_middles_px]
   tick_locs = numpy.array(tick_locs)
 
-  smoothed = signals.smooth(i_over_sigs, window_len=window_len)
+  smoothed = signals.smooth(sums, window_len=window_len)
   if pltcfg['smoothed']:
     whys = smoothed
   else:
-    whys = i_over_sigs
+    whys = sums
   fctr = 1.0
   if config['stretch']:
     whys = stretch(whys, bois)
@@ -1362,7 +1366,8 @@ def sharpness(config, measurement):
   last_idx = bins - 1
   bois = measurement['bins of interest']
   window_len = measurement['window length']
-  i_over_sigs = measurement['Is over sigma']
+  # i_over_sigs = measurement['Is over sigma']
+  sums = measurement['sum Is']
   bin_middles_px = measurement['bin middles px']
   header = measurement['experiment']
   sharpness_roi = config['sharpness_roi']
@@ -1374,11 +1379,14 @@ def sharpness(config, measurement):
     bin_borders = zip(bin_borders_res[:-1], bin_borders_res[1:])
     roi_low, roi_high = signals.hilo(sharpness_roi)
     sh_bois = get_bins_of_interest(bin_borders, roi_low, roi_high)
-    min_val = min(i_over_sigs[b] for b in sh_bois)
+    # min_val = min(i_over_sigs[b] for b in sh_bois)
+    min_val = min(sums[b] for b in sh_bois)
 
-  maximum, boi = max((i_over_sigs[b], b) for b in bois)
+  # maximum, boi = max((i_over_sigs[b], b) for b in bois)
+  maximum, boi = max((sums[b], b) for b in bois)
   # normed = i_over_sigs / maximum
-  normed = stretch(i_over_sigs, bois, min_val=min_val)
+  # normed = stretch(i_over_sigs, bois, min_val=min_val)
+  normed = stretch(sums, bois, min_val=min_val)
   normed_smoothed = signals.smooth(normed, window_len=window_len)
   go_back = 1
   extend_peak = int(max(config.get('extend_peak', 1), 1))
@@ -1600,7 +1608,8 @@ def make_integrator(measurement, scaled=False):
   if scaled:
     C = measurement['scaled']
   else:
-    C = measurement['average Is']
+    # C = measurement['average Is']
+    C = measurement['sum Is']
   experiment = measurement['experiment']
   bin_borders_rho = measurement['bin borders rho']
   delta_rho_bins = bin_borders_rho[1:] - bin_borders_rho[:-1]
@@ -1738,7 +1747,8 @@ def bin_equivalent(m, N):
   brhos = vec_radpx2rho(m['bin borders px'], experiment)
   bbrhos = numpy.array([brhos[:-1], brhos[1:]]).T
   bm2th = vec_radpx2twothetadegs(m['bin middles px'], experiment)
-  m['scaled'] = m['average Is']
+  # m['scaled'] = m['average Is']
+  m['scaled'] = m['sum Is']
   m['scaled bois'] = m['bins of interest']
   m['scaled bins'] = m['bins']
   m['scaled bbpx'] = m['bin borders px']
@@ -1854,9 +1864,11 @@ def scale(C, T, N, res_min, res_max, params, buoyancy):
   def _cor(ii, ab):
     avrho = ab.mean()
     return ii * alpha * exp(-2.0 * B * avrho**2) + beta
-  avIs = C['scaled']
+  # avIs = C['scaled']
+  sums = C['scaled']
   bbrhos = C['scaled gbbrho']
-  scaled = [_cor(ii, ab) for (ii, ab) in izip(avIs, bbrhos)]
+  # scaled = [_cor(ii, ab) for (ii, ab) in izip(avIs, bbrhos)]
+  scaled = [_cor(ii, ab) for (ii, ab) in izip(sums, bbrhos)]
   scaled = numpy.array(scaled)
   rsq = ((scaled - T['scaled'])**2).sum()
   worst = ((T['scaled'].mean() - T['scaled'])**2).sum()
