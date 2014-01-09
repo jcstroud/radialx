@@ -19,10 +19,10 @@ from tkMessageBox import askyesno, showwarning
 
 import numpy
 import yaml
-import Image
 import pyfscache
 import pygmyplot
 
+from PIL import Image
 from scipy import optimize
 from configobj import ConfigObj
 

@@ -1,6 +1,6 @@
 License agreement for
 
-     radialx 0.7.0
+     radialx 0.7.1
 
 1. This LICENSE AGREEMENT is between James C. Stroud,
 and the Individual or Organization ("Licensee") accessing and

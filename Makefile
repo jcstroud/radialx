@@ -63,7 +63,7 @@ test : clean $(VERMODULE)
 
 clean :
 	$(ECHO) Cleaning up in `pwd`.
-	-rm -rf $(DOCS)
+	-rm -rf html
 	-rm -rf $(DOCPDF)
 	cd $(DOCDIR) ; make clean
 

@@ -1,5 +1,7 @@
-0.2.2, 2013-12-20 -- Initial release.
+0.7.1, 2014-01-08 -- Fixed some documentation.
 
 0.7.0, 2014-01-08 -- Ready for pypi release.
                      Uitilities tested and functionalities
                      are consistent. Documented. Bam!
+
+0.2.2, 2013-12-20 -- Initial release.

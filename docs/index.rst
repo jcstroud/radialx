@@ -22,12 +22,10 @@ At present, the only documented functionalities of RadialX are
 1. The simulation of powder diffraction patterns
    from PDB files using the utility called **powderx**.
 
-   If you wish to create simulated powder diffraction
-   patterns, please see the documentation at
-   http://pythonhosted.org/radialx/.
-
 2. Displaying of diffraction image header information
    using the utility called **headerx**.
+
+Detailed usage for powderx_ and headerx_ are below.
 
 Undocumented Functionalities
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -35,19 +33,20 @@ Undocumented Functionalities
 Other, undocumented, functionalities correspond to "modes" of the
 utility called **profilex**:
 
-- *centering*: Finding the centers of powder diffraction images
+- *centering* mode: Finding the centers of powder diffraction images
   in adxv_ binary format.
-- *averaging*: Radial averaging of one or
+- *averaging* mode: Radial integration of one or
   more experimental powder diffraction patterns in adxv_ binary format.
-- *averaging*: Scaling of several powder experimental or simulated
+- *averaging* mode: Scaling of several powder experimental or simulated
   diffraction patterns to a single experimental or simulated pattern.
-- *difference*: Calculating the difference of two scaled
+- *difference* mode: Calculating the difference of two scaled
   radially integrated experimental powder diffraction patterns.
 
 Although **profilex** is fully functional and heavily tested, its
 user interface (i.e. config file format, etc.) is very likely to
 change. For example, the modes will probably be split into different
-different utilities.
+different utilities and several config file parameters will
+probably be renamed.
 
 It is hoped that the entire RadialX package
 will be fully documented soon.
@@ -78,7 +77,8 @@ The installation of RadialX and many other python packages will
 be made easier by `pip`_. So, before going any further towards
 installation, it is advisable to follow the
 `pip installation instructions`_, including the
-installation of setuptools described therein, which is essential.
+installation of setuptools described therein.
+Setuptools is essential to pip.
 
 CCTBX
 +++++
@@ -91,11 +91,12 @@ and the ``cctbx.python`` executable in your path. `Downloads are available`_
 for numerous operating systems, including Mac OS X, Windows 7 & XP, and
 several flavors of Linux. Additionally, it is possible to build
 CCTBX from a source bundle or, for the more ambitious,
-the SVN repository.
+the SVN repository at sourceforge.
 
-Because of the unique python interpreter behavior required by CCTBX, it is
-necessary to have all dependencies (except CCTBX itself) installed both
-to the ``cctbx.python`` interpreter and to a system python
+Because of the unusual python interpreter behavior forced by
+the cctbx.python executable,
+it is necessary to have all dependencies (except CCTBX itself)
+installed both to the ``cctbx.python`` interpreter and to a system python
 interpreter (e.g. at ``/usr/local/bin/python``).
 
 The difficulty here might be in using pip with CCTBX if
@@ -119,7 +120,7 @@ For the CCTBX python, things are slightly more complicated. First, when
 following the `pip installation instructions`_, use ``cctbx.python``
 with ``ez_setup.py`` and ``get-pip.py``. For example::
 
-  % sudo cctbx.python ex_setup.py
+  % sudo cctbx.python ez_setup.py
   % sudo cctbx.python get-pip.py
 
 Once this latter command completes, you'll see among the final lines of output
@@ -150,8 +151,9 @@ Other python dependencies are (in alphabetical order):
   - pyyaml_
   - scipy_
 
-Most, if not all, of these dependencies can be installed by the python package
-manager called `pip`_, if not already present on your system.
+If not already present on your system, most (if not all) of
+these dependencies can be installed by the python package
+manager called `pip`_.
 The availability of each of these packages will be checked
 during the `build`_ of RadialX by the ``setup.py`` script.
 
@@ -199,7 +201,7 @@ ensure that ``/usr/local/bin`` is in your path.
 These settings only affect how RadialX is built and where it is installed,
 not how it will execute once installed.
 
-Build and installation is easy::
+Once downloaded, build and installation are easy::
 
    % cd radialx
    % make
@@ -215,6 +217,11 @@ Usage
 
 Complete examples of how to use all of the RadialX utilites are
 currently in the ``test`` directory of the `source distribution`_.
+These examples are documented by comments in the config files called
+``powder.yml`` and ``profile.yml``, the latter serving presently
+as the only source of documentation for the **profilex** utility.
+
+Detailed instructions for the headerx_ and powderx_ utilities follow.
 
 headerx
 ~~~~~~~
@@ -286,8 +293,8 @@ below.
 The powderx Config File
 +++++++++++++++++++++++
 
-A yaml_ formatted config file controls the behavior of **powderx** and
-this config file is specified as an argument on the command line::
+A yaml_ formatted config file controls the behavior of **powderx**.
+This config file is specified as an argument on the command line::
 
   powderx powder.yml
 
@@ -355,7 +362,7 @@ has the most parameters. Most of these parameters are self-explanatory.
 - ``bin_reflections``: reflections may be binned by resolution such
   that all the reflections within a shell
   (specified by ``pattern_shells``) are taken to have the
-  same peak shape (i.e. the same FWHM),
+  same center and peak shape (i.e. the same FWHM),
   making the calculations significantly faster at
   the expense of a small decrease in accuracy;
   values for ``bin_reflections`` may be ``True`` or ``False``
@@ -385,6 +392,9 @@ simulated experimental details.
 - ``WAVELENGTH``: radiation wavelength
 - ``DISTANCE``: the distance from the sample to the detector
 
+Please note that yaml is case-sensitive, so these latter
+two parameter names must be in all caps.
+
 
 File Formats
 ------------
@@ -404,7 +414,7 @@ file "``pattern.yml``"::
 
       import numpy
       import yaml
-      ary = numpy.array(yaml.load(open('spectrum.yml')))['spectrum']
+      ary = numpy.array(yaml.load(open('pattern.yml')))['pattern']
 
 The array called "``ary``" is a Nx2 array, with each of the N rows being a
 [2θ, intensity] pair.
@@ -420,7 +430,7 @@ The following are the first six lines of a yaml simulated powder diffraction
 pattern file::
 
       model : "../testdata/stg06-phi06.4-wc-03.8-rc1.0-m4-12.pdb"
-      spectrum :
+      pattern :
         # [   2-theta, intensity ]
         - [  5.205029, 0.5671240 ]
         - [  5.285076, 0.5882654 ]
