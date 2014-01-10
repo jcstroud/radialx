@@ -1643,8 +1643,12 @@ def make_integrator(measurement, scaled=False):
         if frac_a < 0 or frac_b < 0:
           msg = "Fraction less than 0. a:%s, b:%s" % (frac_a, frac_b)
           raise Exception, msg
-        i_a = frac_a * C[bin_a]
-        i_b = frac_b * C[bin_n]
+        try:
+          i_a = frac_a * C[bin_a]
+          i_b = frac_b * C[bin_n]
+        except IndexError, e:
+          tplt = "ROI exceeds resolution limits of %s."
+          raise ConfigError(tplt % measurement['image_key'])
         i_mn = C[bin_m:bin_n] * delta_rho_bins[bin_m:bin_n]
         v = i_a + i_mn.sum() + i_b
     return v 
@@ -1905,12 +1909,7 @@ def scale_several(config, Cs, T, general, outlet, table):
   """
   res_min, res_max = config['roi']
   params = config.get('scale_parameters', None)
-  if params is None:
-    do_score = False
-    save_score = False
-  else:
-    do_score = True
-    save_score = config['save_score']
+  save_score = config['save_score']
   buoyancy = config.get('buoyancy')
   N = config['roi_bins']
   if res_min is None:
@@ -1923,10 +1922,8 @@ def scale_several(config, Cs, T, general, outlet, table):
   outlet("  Scaled To: %s" % T['image_key'])
   outlet(hline)
   outlet(hline)
-  if do_score:
-    if len(Cs) == 1:
-      config['save_score'] = save_score and True
-    else:
+  if save_score:
+    if len(Cs) > 1:
       showwarning('Scaling multiple spectra.',
                   'More than one spectrum to scale.\n\n' +
                   'Scores will not be saved.',
@@ -1934,14 +1931,13 @@ def scale_several(config, Cs, T, general, outlet, table):
       config['save_score'] = False
   for C in Cs:
     scaled = scale(C, T, N, res_min, res_max, params, buoyancy)
-    if do_score:
-      outlet("== %s" % C['image_key'])
-      outlet("==      score: %09.7f" % C['scaled score'])
-      outlet("==      R**2: %09.7f" % C['scaled Rsq'])
-      outlet("==      worst: %09.7f" % C['scaled worst'])
-      tmplt = "==      alpha: %(alpha)f, beta: %(beta)f, B: %(B)f"
-      outlet(tmplt % C['scaled params'])
-      outlet(hline)
+    outlet("== %s" % C['image_key'])
+    outlet("==      score: %09.7f" % C['scaled score'])
+    outlet("==      R**2: %09.7f" % C['scaled Rsq'])
+    outlet("==      worst: %09.7f" % C['scaled worst'])
+    tmplt = "==      alpha: %(alpha)f, beta: %(beta)f, B: %(B)f"
+    outlet(tmplt % C['scaled params'])
+    outlet(hline)
     if save_score:
       if 'image' not in T:
         msg = "Reference for 'scaled_to' should be an image."
@@ -1954,7 +1950,6 @@ def scale_several(config, Cs, T, general, outlet, table):
       beta = C['scaled params']['beta']
       B = C['scaled params']['B']
       json_image = json.dumps(T['image'])
-      pdb = base64.b64encode((bz2.compress(open(model).read())))
       if 'spectrum' in C:
         spectrum = C['spectrum']
       else:
@@ -1966,6 +1961,7 @@ def scale_several(config, Cs, T, general, outlet, table):
         spectrum = serialize_array(spectrum)
         spectrum = base64.b64encode(spectrum)
       if table is not None:
+        pdb = base64.b64encode((bz2.compress(open(model).read())))
         json_config = json.dumps(config)
         json_general = json.dumps(general)
         table.insert(model=model, image_key=image_key, score=score,

@@ -303,7 +303,8 @@ def powder_main():
                            config['d_min'],
                            v=config['v'],
                            w=config['w'],
-                           # B=config['B'],
+                           B=config['B'],
+                           apply_Lp = config['apply_Lp'],
                            pattern_bins=config['pattern_shells'],
                            peakwidths=config['peak_widths'],
                            bin_reflections=config['bin_reflections'])
@@ -347,8 +348,12 @@ K_SQ = 4 * math.log(2)
 
 def integrated_intensity(miller, wavelength, d_max, d_min,
                                  v=0.08, w=0.02, B=0, pattern_bins=250,
-                                 peakwidths=3.0, bin_reflections=False):
+                                 peakwidths=3.0, bin_reflections=False,
+                                 apply_Lp=False):
   """
+  Returns a 2xN array, where the first row is 2-thetas and the second row
+  is intensities.
+
   See ``Diffraction Basics, Part 2'' by James R. Connolly, 2012.
 
   - `wavelength`: wavelength in Angstroms
@@ -395,41 +400,60 @@ def integrated_intensity(miller, wavelength, d_max, d_min,
     twothetas_M = [m.mean() for m in twothetas_M]
     twothetas_M = numpy.array(twothetas_M)
     size = m_times_i.size
+    if B == 0:
+      exp_neg_2B_stol_sq = None
+    else:
+      # B-factor: not necessary, can be applied during scaling
+      # $\dfrac{\sin^{2}\theta}{\lambda^{2}}$
+      logger.info('Selecting sin thetas over lambdas squared')
+      stol_sq = miller.sin_theta_over_lambda_sq()
+      stol_sq = [stol_sq.select(sel) for sel in msels]
+      logger.info('Finding means of sin thetas over lambdas squared.')
+      stol_sq = [m.mean() for m in stol_sq]
+      stol_sq = numpy.array(stol_sq)
+      print stol_sq.shape
+      # $\exp\left(\dfrac{-2B\sin^{2}\theta}{\lambda^{2}}\right)$
+      exp_neg_2B_stol_sq = numpy.exp(-2 * B * stol_sq)
   else:
     logger.info('Extracting arrays.')
     m_times_i = m_times_i.as_numpy_array()
     twothetas_M = twothetas_M.data().as_numpy_array()
     size = miller.size()
+    if B == 0:
+      exp_neg_2B_stol_sq = None
+    else:
+      # $\dfrac{\sin^{2}\theta}{\lambda^{2}}$
+      stol_sq = miller.sin_theta_over_lambda_sq().data().as_numpy_array()
+      # $\exp\left(\dfrac{-2B\sin^{2}\theta}{\lambda^{2}}\right)$
+      exp_neg_2B_stol_sq = numpy.exp(-2 * B * stol_sq)
 
   thetas_M = twothetas_M / 2.0
 
-  # why do I need stol_sq?
-  # $\dfrac{\sin^{2}\theta}{\lambda^{2}}$
-  # stol_sq = miller.sin_theta_over_lambda_sq().data().as_numpy_array()
+  if apply_Lp:
+    # Lorentz & polarization correction
+    # See p. 192 Equation 2.71 of Pecharsky, VK
+    # Fundamentals of powder diffraction  ISBN 0-387-24147-7
+    # $\dfrac{1 + \cos^{2} 2\theta}{\sin^{2}\theta \cos\theta}$
+    # note that $\cos^{2} \left ( 2\theta_{M} \right )$ is a constant
+    LPs = ((1 + numpy.cos(twothetas_M)**2) / 
+           ((numpy.sin(thetas_M)**2) * numpy.cos(thetas_M)))
 
-  # why do I need exp_neg_2B_stol_sq?
-  # $-2 \times B \times \dfrac{\sin^{2}\theta}{\lambda^{2}}$
-  # exp_neg_2B_stol_sq = numpy.exp(-2 * B * stol_sq)
+    # as K in Connolly Diffraction Basics, Part 2
+    """
+    K_{hkl} = \dfrac{M_{hkl}}{V^{2}}
+            \left | F_{hkl} \right |^{2}
+            \left ( \dfrac{1 + \cos^{2}(2\theta)}
+                          {\sin^{2}\theta cos\theta} \right )
+    """
+    Is = (LPs * m_times_i) / (vol**2)
+  else:
+    Is = m_times_i / (vol**2)
 
+  print size
 
-  # Lorentz & polarization correction
-  # See p. 192 Equation 2.71 of Pecharsky, VK
-  # Fundamentals of powder diffraction  ISBN 0-387-24147-7
-  # $\dfrac{1 + \cos^{2} 2\theta}{\sin^{2}\theta \cos\theta}$
-  # note that $\cos^{2} \left ( 2\theta_{M} \right )$ is a constant
-  LPs = ((1 + numpy.cos(twothetas_M)**2) / 
-         ((numpy.sin(thetas_M)**2) * numpy.cos(thetas_M)))
-
-  # as K in Connolly Diffraction Basics, Part 2
-  """
-  K_{hkl} = \dfrac{M_{hkl}}{V^{2}}
-          \left | F_{hkl} \right |^{2}
-          \left ( \dfrac{1 + \cos^{2}(2\theta)}
-                        {\sin^{2}\theta cos\theta} \right )
-  """
-  # why is exp_neg_2B_stol_sq here?
-  # Is = (multis * LPs * intensities * exp_neg_2B_stol_sq) / (vol**2)
-  Is = (LPs * m_times_i) / (vol**2)
+  if B != 0:
+    # apply a B-factor
+    Is = Is * exp_neg_2B_stol_sq
 
   # linear in $2\theta$
   twotheta_max = twothetas_M.max()

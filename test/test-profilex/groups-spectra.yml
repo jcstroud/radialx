@@ -24,5 +24,6 @@
 # only about images.
 spectra :
   simulated : 
+     - stg06-xprepx
      - stg06
 

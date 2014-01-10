@@ -186,79 +186,85 @@ def profile_main():
     ms_values = ms.values()
     TCs = sp_values + ms_values
     _radialx.sharpnesses(config, TCs)
+    # if ((config['scaled_to'] is not None) and
+    #     (len(images) + len(spectra) == 2)):
     if config['scaled_to'] is not None:
-      db = SQLite.Database(general['score_db'])
-      title = "Model Name"
-      table = db.create("scores",
-                        # pdb model that produced spectrum
-                        ("model", TEXT),
-                        # key from image database
-                        ("image_key", TEXT),
-                        # Ro score for the scaling
-                        ("score", REAL),
-                        # R**2 statistic
-                        ("Rsq", REAL),
-                        # fitted alpha scaling parameter
-                        ("alpha", REAL),
-                        # fitted beta scaling parameter
-                        ("beta", REAL),
-                        # fitted B scaling parameter
-                        ("B", REAL),
-                        # json of the image entry from the images db
-                        ("image", TEXT),
-                        # base64 of bz2 of model pdb file
-                        ("pdb", TEXT),
-                        # base64 of numpy serialized spectrum array
-                        # in [ 2-theta, intensity ] pairs
-                        ("spectrum", TEXT),
-                        # json of the profilex averaging config section
-                        ("config", TEXT),
-                        # json of the profilex general config section
-                        ("general", TEXT),
-                        mode="open")
+      if len(images) + len(spectra) == 2:
+        db = SQLite.Database(general['score_db'])
+        title = "Model Name"
+        table = db.create("scores",
+                          # pdb model that produced spectrum
+                          ("model", TEXT),
+                          # key from image database
+                          ("image_key", TEXT),
+                          # Ro score for the scaling
+                          ("score", REAL),
+                          # R**2 statistic
+                          ("Rsq", REAL),
+                          # fitted alpha scaling parameter
+                          ("alpha", REAL),
+                          # fitted beta scaling parameter
+                          ("beta", REAL),
+                          # fitted B scaling parameter
+                          ("B", REAL),
+                          # json of the image entry from the images db
+                          ("image", TEXT),
+                          # base64 of bz2 of model pdb file
+                          ("pdb", TEXT),
+                          # base64 of numpy serialized spectrum array
+                          # in [ 2-theta, intensity ] pairs
+                          ("spectrum", TEXT),
+                          # json of the profilex averaging config section
+                          ("config", TEXT),
+                          # json of the profilex general config section
+                          ("general", TEXT),
+                          mode="open")
 
-      if options.model is not None:
-        if os.path.exists(options.model):
-          options.model = None
-        elif table(model=options.model):
-          options.model = None
-      title = "Unique Model Name"
-      latest_pdb = last_made(dirpath=general['model_dir'],
-                             suffix=".pdb")
-      while options.model is None:
-        options.model = askopenfilename(
-                                  title=title,
-                                  parent=tk,
-                                  filetypes=[("PDB", "*.pdb")],
-                                  initialdir=general['model_dir'],
-                                  initialfile=latest_pdb)
-        if not options.model:
-          msg = "Must proceed with a\nunique model name.\n\nContinue?"
-          if askyesno("Continue", msg, parent=tk):
+        if options.model is not None:
+          if os.path.exists(options.model):
             options.model = None
-          else:
-            sys.exit()
-        else:
-          rows = table(model=options.model)
-          if rows:
-            bn = os.path.basename(options.model)
-            tplt = ("Model name '%s'\nis not unique.\n\n" +
-                    "Overwrite score?")
-            msg = tplt % bn
-            overwrite = askyesnocancel("Overwrite Score", msg)
-            if overwrite is None:
+          elif table(model=options.model):
+            options.model = None
+        title = "Unique Model Name"
+        latest_pdb = last_made(dirpath=general['model_dir'],
+                               suffix=".pdb")
+        while options.model is None:
+          options.model = askopenfilename(
+                                    title=title,
+                                    parent=tk,
+                                    filetypes=[("PDB", "*.pdb")],
+                                    initialdir=general['model_dir'],
+                                    initialfile=latest_pdb)
+          if not options.model:
+            msg = "Must proceed with a\nunique model name.\n\nContinue?"
+            if askyesno("Continue", msg, parent=tk):
               options.model = None
-            elif overwrite:
-              if len(rows) > 1:
-                msg = ("%s Records with model\nnamed '%s'.\n\n" +
-                       "Erase all?") % (len(rows), bn)
-                if askyesno("Erase Records", msg, parent=tk):
-                  for row in rows:
-                    del table[row['__id__']]
-                else:
-                  config['save_score'] = False
             else:
-              config['save_score'] = False
+              sys.exit()
+          else:
+            rows = table(model=options.model)
+            if rows:
+              bn = os.path.basename(options.model)
+              tplt = ("Model name '%s'\nis not unique.\n\n" +
+                      "Overwrite score?")
+              msg = tplt % bn
+              overwrite = askyesnocancel("Overwrite Score", msg)
+              if overwrite is None:
+                options.model = None
+              elif overwrite:
+                if len(rows) > 1:
+                  msg = ("%s Records with model\nnamed '%s'.\n\n" +
+                         "Erase all?") % (len(rows), bn)
+                  if askyesno("Erase Records", msg, parent=tk):
+                    for row in rows:
+                      del table[row['__id__']]
+                  else:
+                    config['save_score'] = False
+              else:
+                config['save_score'] = False
+      else:
+        table = None
+        options.model = None
       config['pdb_model'] = options.model
       T = None
       Cs = []

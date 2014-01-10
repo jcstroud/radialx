@@ -218,7 +218,7 @@ Usage
 Complete examples of how to use all of the RadialX utilites are
 currently in the ``test`` directory of the `source distribution`_.
 These examples are documented by comments in the config files called
-``powder.yml`` and ``profile.yml``, the latter serving presently
+``powder.yml`` and ``profile.cfg``, the latter serving presently
 as the only source of documentation for the **profilex** utility.
 
 Detailed instructions for the headerx_ and powderx_ utilities follow.
@@ -351,9 +351,14 @@ has the most parameters. Most of these parameters are self-explanatory.
   this correction is discussed in the SHELXL 97 manual on page 7-7
   (http://shelx.uni-ac.gwdg.de/SHELX/shelx97.pdf); use ``null``
   or ``0`` if extinction correction is not desired
-- ``v`` & ``w``: for the summation of reflections, the full-width
-  at half-max (FWHM) of a Lorentzian diffraction peak is proportional
-  to v + w tan(θ)
+- ``v`` & ``w``: for the summation of reflections, the square
+  of the full-width at half-max (FWHM) of a Lorentzian diffraction
+  peak is equal to to v + w tan(θ)
+- ``B``: isotropic temperature factor; if the simulated pattern
+   is to be scaled with experimental data, then ``B`` should be
+   set to 0 because it will be refined during scaling
+- ``apply_Lp``: apply Lorentz & polarization correction
+  (``True`` or ``False``)
 - ``pattern_shells``: number of points in the simulated pattern;
   each point represents the integrated intensity of the shell
 - ``peak_widths``: the intensity of a reflection is taken to be
@@ -395,6 +400,99 @@ simulated experimental details.
 Please note that yaml is case-sensitive, so these latter
 two parameter names must be in all caps.
 
+
+Summation
++++++++++
+
+The simulated powder diffraction pattern is the spherical
+summation of diffraction intensity over each resolution shell,
+where the number of resolution shells is specified by the ``patern_shells``
+setting of the **powderx** config file.
+Each shell is summed independently. All shells have the same
+width in :math:`\varrho`, or :math:`\sin(\theta)/\lambda`, where
+:math:`\theta` is the Bragg angle and :math:`\lambda` is
+the wavelength.
+
+Given that the structure factor for a Miller index, :math:`hk\ell`,
+is :math:`F_{hk\ell}`, then the corresponding intensity
+:math:`I_{hk\ell}` is
+
+.. math::
+
+    I_{hk\ell} =
+      \dfrac{M}{V^{2}}
+      \left [
+        \dfrac{1 + \cos^{2}(2\theta)}
+               {\sin^{2}\theta \cos\theta}
+      \right ]
+      F_{hk\ell} F_{hk\ell}^{*}
+      \exp \left (
+              \dfrac{-2B\sin^{2}\theta}{\lambda^{2}}
+           \right )
+
+Where :math:`V` is the unit cell volume, :math:`M` is
+the multiplicity of the reflection, and :math:`B` the isotropic
+temperature factor.
+
+If the simulated pattern is to be scaled to
+experimental data using the **profilex** utility,
+:math:`B` should be set to 0 because :math:`B` is
+refined during scaling. Note that when :math:`B`
+is set to 0, the expression for diffraction intensity
+simplifies to
+
+.. math::
+
+    I_{hk\ell} =
+      \dfrac{M}{V^{2}}
+      \left [
+        \dfrac{1 + \cos^{2}(2\theta)}
+               {\sin^{2}\theta \cos\theta}
+      \right ]
+      F_{hk\ell} F_{hk\ell}^{*}
+
+The term
+:math:`\dfrac{1 + \cos^{2}(2\theta)}{\sin^{2}\theta \cos\theta}`
+is the Lorentz polarization correction, which may be applied
+to the simulated pattern using the ``apply_Lp`` setting
+within the ``simulation`` section of the config file.
+
+Diffraction intensities are distributed throughout a profile,
+approximated by **powderx** as a `Lorentzian distribution`_ (also
+called a "Cauchy distribution"). This distribution takes the form
+
+.. math::
+
+    A_{J}^{L} = \dfrac{2}{\pi H_{B}}
+       \left [1 + \dfrac{4}{H_{B}^{2}}
+                  \left ( 2\theta_{i} - 2\theta_{hk\ell} \right )^2
+       \right ]^{-1}
+
+Where :math:`A_{J}^{L}` is the intensity contribution
+at angle :math:`\theta_{i}`, :math:`H_{B}` is the FWHM
+of the peak, and :math:`\theta_{hk\ell}` is the angle of
+diffraction for the Miller index :math:`hk\ell`.  
+For the purposes of the simulation, :math:`\theta_{i}` is taken
+from the middles (in :math:`\varrho`) of the shells.
+
+Because it is computationally expensive to calculate the contribution
+of every reflection to every shell, **powderx** allows the user
+to limit the calculations to the shells in the neighborhood
+of :math:`\theta_{i}` using the ``peak_widths`` setting. This setting
+specifies the width of the neighborhood in multiples of the FWHM.
+
+The FWHM, or :math:`H_{B}`, can be expressed as a function of the Bragg
+angle of the reflection:
+
+.. math::
+
+  H_{B}^{2} = v \tan \theta_{hk\ell} + w
+
+The two parameters of this expression, :math:`v` and :math:`w`
+may be adjusted using the config file settings ``v`` and ``w``,
+respectively.
+
+.. _`Lorentzian distribution`: http://en.wikipedia.org/wiki/Cauchy_distribution
 
 File Formats
 ------------
