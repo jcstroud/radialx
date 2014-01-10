@@ -37,10 +37,10 @@ simulation :
   pattern_shells : 200
   # number of peak widths over which to integrate each reflection (3.0)
   peak_widths : 3
-  # if True, the reflections will be binned into the number of 
+  # if True, the reflections will be combined into the number of 
   # bins specified by pattern_bins to make the integration
   # significantly faster but with a small decrease in accuracy
-  bin_reflections : True
+  combine_reflections : True
 
 plot :
 

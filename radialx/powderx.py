@@ -298,16 +298,16 @@ def powder_main():
 
   logger.info("Creating integrated intensity pattern from pdb.")
   pattern = integrated_intensity(sf_pdb,
-                           experiment['WAVELENGTH'],
-                           config['d_max'],
-                           config['d_min'],
-                           v=config['v'],
-                           w=config['w'],
-                           B=config['B'],
-                           apply_Lp = config['apply_Lp'],
-                           pattern_bins=config['pattern_shells'],
-                           peakwidths=config['peak_widths'],
-                           bin_reflections=config['bin_reflections'])
+                       experiment['WAVELENGTH'],
+                       config['d_max'],
+                       config['d_min'],
+                       v=config['v'],
+                       w=config['w'],
+                       B=config['B'],
+                       apply_Lp = config['apply_Lp'],
+                       pattern_bins=config['pattern_shells'],
+                       peakwidths=config['peak_widths'],
+                       bin_reflections=config['combine_reflections'])
 
   p = pygmyplot.xy_plot(numpy.degrees(pattern[0]),
                         pattern[1], master=tk)

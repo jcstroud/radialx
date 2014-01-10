@@ -357,20 +357,20 @@ has the most parameters. Most of these parameters are self-explanatory.
 - ``B``: isotropic temperature factor; if the simulated pattern
    is to be scaled with experimental data, then ``B`` should be
    set to 0 because it will be refined during scaling
-- ``apply_Lp``: apply Lorentz & polarization correction
+- ``apply_Lp``: apply Lorentz polarization correction
   (``True`` or ``False``)
 - ``pattern_shells``: number of points in the simulated pattern;
   each point represents the integrated intensity of the shell
 - ``peak_widths``: the intensity of a reflection is taken to be
   0 beyond this number of FWHM from the center of the Lorentzian
   reflection peak
-- ``bin_reflections``: reflections may be binned by resolution such
-  that all the reflections within a shell
+- ``combine _reflections``: reflections may be combined by resolution
+  such that all the reflections within a shell
   (specified by ``pattern_shells``) are taken to have the
   same center and peak shape (i.e. the same FWHM),
   making the calculations significantly faster at
   the expense of a small decrease in accuracy;
-  values for ``bin_reflections`` may be ``True`` or ``False``
+  values for ``combine_reflections`` may be ``True`` or ``False``
 
 plot
 ####
@@ -408,31 +408,44 @@ The simulated powder diffraction pattern is the spherical
 summation of diffraction intensity over each resolution shell,
 where the number of resolution shells is specified by the ``patern_shells``
 setting of the **powderx** config file.
-Each shell is summed independently. All shells have the same
+Each shell is summed independently. All shells have approximately the same
 width in :math:`\varrho`, or :math:`\sin(\theta)/\lambda`, where
 :math:`\theta` is the Bragg angle and :math:`\lambda` is
 the wavelength.
 
 Given that the structure factor for a Miller index, :math:`hk\ell`,
-is :math:`F_{hk\ell}`, then the corresponding intensity
+is :math:`F_{hk\ell}`, the corresponding intensity
 :math:`I_{hk\ell}` is
 
 .. math::
+    :label: intensity
 
     I_{hk\ell} =
-      \dfrac{M}{V^{2}}
-      \left [
-        \dfrac{1 + \cos^{2}(2\theta)}
-               {\sin^{2}\theta \cos\theta}
-      \right ]
-      F_{hk\ell} F_{hk\ell}^{*}
+      \dfrac{M_{hk\ell}}{V^{2}} \cdot
+      L_{p} \cdot
+      F_{hk\ell} \cdot F_{hk\ell}^{*} \cdot
       \exp \left (
               \dfrac{-2B\sin^{2}\theta}{\lambda^{2}}
            \right )
 
-Where :math:`V` is the unit cell volume, :math:`M` is
-the multiplicity of the reflection, and :math:`B` the isotropic
-temperature factor.
+Where :math:`V` is the unit cell volume, :math:`M_{hk\ell}` is
+the multiplicity of the reflection, :math:`B` the isotropic
+temperature factor, and :math:`F_{hk\ell}^{*}` is the
+complex conjugate of :math:`F_{hk\ell}`.
+The term :math:`L_{p}` is the Lorentz polarization correction:
+
+.. math::
+    :label: Lp
+
+    L_{p} =
+      \left [
+        \dfrac{1 + \cos^{2}(2\theta)}
+               {\sin^{2}\theta \cos\theta}
+      \right ]
+
+The Lorentz polarization correction may be aplied
+to the simulated pattern using the ``apply_Lp`` setting
+within the ``simulation`` section of the **powderx** config file.
 
 If the simulated pattern is to be scaled to
 experimental data using the **profilex** utility,
@@ -442,26 +455,19 @@ is set to 0, the expression for diffraction intensity
 simplifies to
 
 .. math::
+    :label: zeroB
 
     I_{hk\ell} =
-      \dfrac{M}{V^{2}}
-      \left [
-        \dfrac{1 + \cos^{2}(2\theta)}
-               {\sin^{2}\theta \cos\theta}
-      \right ]
-      F_{hk\ell} F_{hk\ell}^{*}
-
-The term
-:math:`\dfrac{1 + \cos^{2}(2\theta)}{\sin^{2}\theta \cos\theta}`
-is the Lorentz polarization correction, which may be applied
-to the simulated pattern using the ``apply_Lp`` setting
-within the ``simulation`` section of the config file.
+      \dfrac{M_{hk\ell}}{V^{2}} \cdot
+      L_{p} \cdot
+      F_{hk\ell} \cdot F_{hk\ell}^{*}
 
 Diffraction intensities are distributed throughout a profile,
 approximated by **powderx** as a `Lorentzian distribution`_ (also
 called a "Cauchy distribution"). This distribution takes the form
 
 .. math::
+    :label: lorentzian
 
     A_{J}^{L} = \dfrac{2}{\pi H_{B}}
        \left [1 + \dfrac{4}{H_{B}^{2}}
@@ -472,8 +478,20 @@ Where :math:`A_{J}^{L}` is the intensity contribution
 at angle :math:`\theta_{i}`, :math:`H_{B}` is the FWHM
 of the peak, and :math:`\theta_{hk\ell}` is the angle of
 diffraction for the Miller index :math:`hk\ell`.  
-For the purposes of the simulation, :math:`\theta_{i}` is taken
+For the purposes of the simulation, values of :math:`\theta_{i}` are taken
 from the middles (in :math:`\varrho`) of the shells.
+
+The FWHM, or :math:`H_{B}`, can be expressed as a function of the Bragg
+angle of the reflection:
+
+.. math::
+    :label: FWHM
+
+    H_{B}^{2} = v \tan \theta_{hk\ell} + w
+
+The two parameters of this expression, :math:`v` and :math:`w`,
+may be adjusted using the **powderx** config file
+settings ``v`` and ``w``, respectively.
 
 Because it is computationally expensive to calculate the contribution
 of every reflection to every shell, **powderx** allows the user
@@ -481,16 +499,50 @@ to limit the calculations to the shells in the neighborhood
 of :math:`\theta_{i}` using the ``peak_widths`` setting. This setting
 specifies the width of the neighborhood in multiples of the FWHM.
 
-The FWHM, or :math:`H_{B}`, can be expressed as a function of the Bragg
-angle of the reflection:
+Combining Reflections
+#####################
+
+With a small sacrifice in accuracy, a significant
+improvement in the speed of the summation
+can be realized by combining reflections by bin before
+applying Equation :eq:`lorentzian`. For each bin, intensities
+are summed over each Miller index of the bin,
+:math:`hk\ell(\text{bin})`:
 
 .. math::
+    :label: sum_bin
 
-  H_{B}^{2} = v \tan \theta_{hk\ell} + w
+    I_{\text{bin}} = \sum I_{hk\ell(\text{bin})}
 
-The two parameters of this expression, :math:`v` and :math:`w`
-may be adjusted using the config file settings ``v`` and ``w``,
-respectively.
+Each bin intensity :math:`I_{\text{bin}}` has a peak center,
+:math:`2\theta_{\text{bin}}`, at the
+middle of the bin as determined
+by the taking the mean of the :math:`2\theta` angles
+of the reflections therein. If :math:`N_{\text{bin}}` is
+the number of reflections in the bin, the middle of the
+bin is given by Equation :eq:`bin_middle`:
+
+.. math::
+    :label: bin_middle
+
+    2\theta_{\text{bin}} =
+       \dfrac
+          {\sum 2\theta_{hk\ell(\text{bin})}}
+          {N_{\text{bin}}}
+
+When reflections are combined in this manner, Equation :eq:`lorentzian`
+becomes
+
+.. math::
+    :label: combined_lorentzian
+
+       A_{J}^{L} = \dfrac{2}{\pi H_{B}}
+       \left [1 + \dfrac{4}{H_{B}^{2}}
+                  \left ( 2\theta_{i} - 2\theta_{\text{bin}} \right )^2
+       \right ]^{-1}
+
+This approximation can be applied with the ``combine_reflections`` setting
+of the **powderx** config file.
 
 .. _`Lorentzian distribution`: http://en.wikipedia.org/wiki/Cauchy_distribution
 
