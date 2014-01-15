@@ -1,3 +1,14 @@
+0.8.5, 2014-01-15 -- Added background correction to plotting and
+                     documented scaling, background correction,
+                     and the goodness of fit statistic.
+
+0.8.4, 2014-01-14 -- Changed the optimization in profilex scaling
+                     to fit background, which added an extra fitting
+                     parameter, but makes more sense.
+
+0.8.3, 2014-01-10 -- Fixed bug where integration returned bin averages
+                     instead of summation in averaging mode of profilex.
+
 0.8.2, 2014-01-10 -- Forgot to change Pillow dependency back to PIL
                      on previous release.
 

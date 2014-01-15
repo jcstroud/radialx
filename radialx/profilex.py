@@ -203,10 +203,12 @@ def profile_main():
                           ("Rsq", REAL),
                           # fitted alpha scaling parameter
                           ("alpha", REAL),
-                          # fitted beta scaling parameter
-                          ("beta", REAL),
+                          # fitted m scaling parameter
+                          ("m", REAL),
+                          # fitted b scaling parameter
+                          ("b", REAL),
                           # fitted B scaling parameter
-                          ("B", REAL),
+                          ("Bfac", REAL),
                           # json of the image entry from the images db
                           ("image", TEXT),
                           # base64 of bz2 of model pdb file

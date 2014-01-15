@@ -37,6 +37,8 @@ class ShapeError(RadialXError): pass
 class ConfigError(RadialXError): pass
 class GroupError(RadialXError): pass
 class ResolutionError(RadialXError): pass
+class ParameterError(RadialXError): pass
+class OptimizationError(RadialXError): pass
 class DummyError(Exception): pass
 
 DEBUG = False
@@ -282,7 +284,7 @@ def integrate(data, nbins, disc, minI=None,
       rjcts.append(idxs[:, rjct_idxs])
   sigma = numpy.std(numpy.concatenate(all_values))
   progress(msg, 1.0)
-  sums = numpy.array(means)
+  sums = numpy.array(sums)
   means = numpy.array(means)
   stds = numpy.array(stds)
   ns = numpy.array(ns)
@@ -1175,7 +1177,10 @@ def plot_image(plt, measurement, config, pltcfg, plot_number):
   if 'scaled to' in measurement:
     bin_middles_px = measurement['scaled bmpx']
     # i_over_sigs = measurement['scaled']
-    sums = measurement['scaled']
+    if 'bg corrected' in measurement:
+      sums = measurement['bg corrected']
+    else:
+      sums = measurement['scaled']
     bois = measurement['scaled bois']
     bins = measurement['scaled bins']
   else:
@@ -1196,7 +1201,6 @@ def plot_image(plt, measurement, config, pltcfg, plot_number):
   line_width = pltcfg.get('line_width', 1)
   tick_length = pltcfg.get('tick_length', 7)
   tick_width = pltcfg.get('tick_length', 1.5)
-
 
   num_xticks = pltcfg.get('num_xticks', 0)
   if (num_xticks is None) or (num_xticks == "None"):
@@ -1686,6 +1690,10 @@ def bin_for_scaling(m, N, res_min, res_max, norm=False):
   # more unfortunate variable names
   m['scaled gbbrho'] = bbrhos
   m['scaled gbbres'] = bbres
+  bmrho = vec_radpx2rho(m['scaled bmpx'], experiment)
+  bm2th = vec_radpx2twothetadegs(m['scaled bmpx'], experiment)
+  m['scaled bmrho'] = bmrho
+  m['scaled bm2th'] = bm2th
   return m
 
 def format_spectrum(model_name, twothetas, intensities, degrees):
@@ -1745,10 +1753,14 @@ def write_spectrum(spectrum_file, model_name,
     specfile.write(spectrum)
     specfile.write("\n")
 
-def bin_equivalent(m, N):
+def bin_equivalent(m):
+  """
+  The scaled binning is *equivalent* to the integration binning.
+  """
   experiment = m['experiment']
   brhos = vec_radpx2rho(m['bin borders px'], experiment)
   bbrhos = numpy.array([brhos[:-1], brhos[1:]]).T
+  bmrho = vec_radpx2rho(m['bin middles px'], experiment)
   bm2th = vec_radpx2twothetadegs(m['bin middles px'], experiment)
   # m['scaled'] = m['average Is']
   m['scaled'] = m['sum Is']
@@ -1756,13 +1768,20 @@ def bin_equivalent(m, N):
   m['scaled bins'] = m['bins']
   m['scaled bbpx'] = m['bin borders px']
   m['scaled bmpx'] = m['bin middles px']
+  m['scaled bmrho'] = bmrho
+  m['scaled bm2th'] = bm2th
   m['scaled reshi'] = m['roi high']
   m['scaled reslo'] = m['roi low']
   m['scaled gbbrho'] = bbrhos
+  m['bin middles rho'] = bmrho
   m['bin middles two-theta'] = bm2th
   return m
   
 def get_bbres_bbrhos_from_N(N, res_min, res_max):
+  """
+  Returns the fancy indices for the bin borders in resolution (bbres)
+  and in rho (bbrhos), running from res_min to res max, inclusinve.
+  """
   rho_min = res2rho(res_min)
   rho_max = res2rho(res_max)
   rho_min, rho_max = signals.lohi((rho_min, rho_max))
@@ -1789,7 +1808,7 @@ def get_bois(C, res_min, res_max):
 
 def get_bbres_bbrhos_from_C(C, res_min, res_max):
   """
-  return the fancy indexes of the bins that run from
+  Returns the fancy indexes of the bins that run from
   res_min to res_max, inclusive
   """
   bpxs = C['bin borders px']
@@ -1802,30 +1821,68 @@ def get_bbres_bbrhos_from_C(C, res_min, res_max):
   bbrhos = numpy.array([brhos[1:], brhos[:-1]]).T
   bbres_bbrhos = numpy.array([bbres, bbrhos]).swapaxes(0,1)
   return bbres_bbrhos
- 
-def make_rsqer(C, T, params, buoyancy=1):
-  """
-  `buoyancy` is buoyancy of C
-  """
+
+
+# def make_rsqer(C, T, params, buoyancy=1):
+#   """
+#   `buoyancy` is buoyancy of C
+#   """
+#   # no background estimation
+#   # I \alpha \exp \left \{ -2B\varrho^{2} \right \} + \beta
+#   bbrhos = T['scaled gbbrho']
+#   exp = math.exp
+#   def _r(args):
+#     if len(args) == 2:
+#       alpha, beta = args
+#       B = params[3]
+#     else:
+#       alpha, beta, B = args
+#     if alpha <= 0:
+#       rs = numpy.zeros(bbrhos.size) + MAXLIK
+#     else:
+#       def _cor(ii, lo, hi):
+#         avrho = (lo + hi) / 2
+#         return ii * alpha * exp(-2.0 * B * avrho**2) + beta
+#       rs = []
+#       iii = izip(bbrhos, C['scaled'], T['scaled'])
+#       for (lo_rho, hi_rho), iiC, iiT in iii:
+#         cor_iiC = _cor(iiC, lo_rho, hi_rho)
+#         if cor_iiC > iiT:
+#           dif = buoyancy * (cor_iiC - iiT)
+#         else:
+#           dif = cor_iiC - iiT
+#         rs.append(dif)
+#     return numpy.array(rs)
+#   return _r
+
+
+def make_rsqer_bg(C, T, params, buoyancy=1):
+  # background estimation
+  # \left \{ I_{\varrho} - \left (m\varrho + b \right ) \right \}
+  # \alpha \exp \left \{ -2B\varrho^{2} \right \}
   bbrhos = T['scaled gbbrho']
   exp = math.exp
   def _r(args):
-    if len(args) == 2:
-      alpha, beta = args
-      B = params[2]
+    if len(args) == 3:
+      alpha, m, b = args
+      B = params[3]
+    elif len(args) == 4:
+      alpha, m, b, B = args
     else:
-      alpha, beta, B = args
+      msg = "Number of args should be 3 or 4: %s" % args
+      raise ParameterError(msg)
     if alpha <= 0:
       rs = numpy.zeros(bbrhos.size) + MAXLIK
     else:
-      def _cor(ii, a, b):
-        avrho = (a + b) / 2
-        return ii * alpha * exp(-2.0 * B * avrho**2) + beta
+      def _cor(ii, lo, hi):
+        avrho = (lo + hi) / 2
+        return (alpha * (ii - ((m * avrho) + b)) *
+                exp(-2.0 * B * avrho**2))
       rs = []
       iii = izip(bbrhos, C['scaled'], T['scaled'])
       for (lo_rho, hi_rho), iiC, iiT in iii:
         cor_iiC = _cor(iiC, lo_rho, hi_rho)
-        if cor_iiC > iiT:
+        if (cor_iiC > iiT) and (buoyancy is not None):
           dif = buoyancy * (cor_iiC - iiT)
         else:
           dif = cor_iiC - iiT
@@ -1837,37 +1894,46 @@ def scale(C, T, N, res_min, res_max, params, buoyancy):
   """
   Spectrum `C` will be scaled to `T`.
   """
-  if buoyancy is not None:
-    if "scaled to" not in T:
-      bin_equivalent(T, N)
-      T['scaled to'] = T['image_key']
-    bin_equivalent(C, N)
-  else:
+  if buoyancy is None:
     if "normalized" not in T:
       bin_for_scaling(T, N, res_min, res_max, norm=True)
     bin_for_scaling(C, N, res_min, res_max)
     buoyancy = 1
-  f_rsqr = make_rsqer(C, T, params, buoyancy)
+  else:
+    if "scaled to" not in T:
+      bin_equivalent(T)
+      T['scaled to'] = T['image_key']
+    bin_equivalent(C)
+  f_rsqr = make_rsqer_bg(C, T, params, buoyancy)
   if params is None:
+    # [alpha, m, b B]
+    guesses = [1.0, 0.0, 0.0, 0.0]
+    aaa = optimize.leastsq(f_rsqr, guesses)
+    if 1 <= aaa[-1] <= 4:
+      alpha, m, b, B = aaa[0]
+    else:
+      msg = "Optimization failed: %s" % aaa
+      raise OptimizationError(msg)
+  else:
+    # [alpha, m, b]
     guesses = [1.0, 0.0, 0.0]
     aaa = optimize.leastsq(f_rsqr, guesses)
     if 1 <= aaa[-1] <= 4:
-      alpha, beta, B = aaa[0]
-    else:
-      raise Exception, aaa
-  else:
-    guesses = [1.0, 0.0]   
-    aaa = optimize.leastsq(f_rsqr, guesses)
-    if 1 <= aaa[-1] <= 4:
-      alpha, beta = aaa[0]
-      B = params[2]
+      alpha, m, b = aaa[0]
+      B = params[3]
     else:
       raise Exception, aaa
   exp = math.exp
+  # no background estimation
+  # def _cor(ii, ab):
+  #   avrho = ab.mean()
+  #   return ii * alpha * exp(-2.0 * B * avrho**2) + beta
+  # background estimation
   def _cor(ii, ab):
     avrho = ab.mean()
-    return ii * alpha * exp(-2.0 * B * avrho**2) + beta
-  # avIs = C['scaled']
+    return (alpha * (ii - ((m * avrho) + b)) *
+            exp(-2.0 * B * avrho**2))
+  avIs = C['scaled']
   sums = C['scaled']
   bbrhos = C['scaled gbbrho']
   # scaled = [_cor(ii, ab) for (ii, ab) in izip(avIs, bbrhos)]
@@ -1881,7 +1947,10 @@ def scale(C, T, N, res_min, res_max, params, buoyancy):
   C['scaled'] = scaled
   C['scaled to'] = T['image_key']
   C['scaled Rsq'] = rsq
-  C['scaled params'] = {'alpha':alpha, 'beta':beta, 'B':B}
+  # no background estimation
+  # C['scaled params'] = {'alpha':alpha, 'beta':beta, 'B':B}
+  # background estimation
+  C['scaled params'] = {'alpha':alpha, 'm': m, 'b':b, 'B':B}
   return C
 
 def serialize_array(ary, name="ary"):
@@ -1903,7 +1972,9 @@ def deserialize_array(s, name="ary"):
 
 def scale_several(config, Cs, T, general, outlet, table):
   """
-  `equiv` flag means that all have equivalent binning
+  The `equiv` flag means that all have equivalent binning.
+
+  `T` is the reference spectrum, typically experimental.
 
   This function modifies `Cs`.
   """
@@ -1924,8 +1995,8 @@ def scale_several(config, Cs, T, general, outlet, table):
   outlet(hline)
   if save_score:
     if len(Cs) > 1:
-      showwarning('Scaling multiple spectra.',
-                  'More than one spectrum to scale.\n\n' +
+      showwarning('Scaling multiple patterns.',
+                  'More than one pattern to scale.\n\n' +
                   'Scores will not be saved.',
                   parent=outlet.parent)
       config['save_score'] = False
@@ -1935,7 +2006,7 @@ def scale_several(config, Cs, T, general, outlet, table):
     outlet("==      score: %09.7f" % C['scaled score'])
     outlet("==      R**2: %09.7f" % C['scaled Rsq'])
     outlet("==      worst: %09.7f" % C['scaled worst'])
-    tmplt = "==      alpha: %(alpha)f, beta: %(beta)f, B: %(B)f"
+    tmplt = "==      alpha: %(alpha)f, m: %(m)f, b: %(b)f, B: %(B)f"
     outlet(tmplt % C['scaled params'])
     outlet(hline)
     if save_score:
@@ -1947,7 +2018,8 @@ def scale_several(config, Cs, T, general, outlet, table):
       score = C['scaled score']
       Rsq = C['scaled Rsq']
       alpha = C['scaled params']['alpha']
-      beta = C['scaled params']['beta']
+      m = C['scaled params']['m']
+      b = C['scaled params']['b']
       B = C['scaled params']['B']
       json_image = json.dumps(T['image'])
       if 'spectrum' in C:
@@ -1965,8 +2037,37 @@ def scale_several(config, Cs, T, general, outlet, table):
         json_config = json.dumps(config)
         json_general = json.dumps(general)
         table.insert(model=model, image_key=image_key, score=score,
-                     Rsq=Rsq, alpha=alpha, beta=beta, B=B,
+                     Rsq=Rsq, alpha=alpha, m=m, b=b, Bfac=B,
                      image=json_image, pdb=pdb, spectrum=spectrum,
                      config=json_config, general=json_general)
         table.commit()
+  if config['background_correction']:
+    if len(Cs) > 1:
+      msg = "Background correction can not be used on >1 pattern."
+      raise ConfigError(msg)
+    else:
+      T['bg corrected'] = bg_correct(T, alpha, B)
+      C['bg corrected'] = bg_correct(C, alpha, B)
   return Cs
+
+def bg_correct(S, alpha, B):
+  """
+  Keeping this as a function just for the comments.
+  
+  Scaling
+
+  .. :math:
+
+    I_{\varrho}^{\circ} =
+    \left \{ I_{\varrho} - \left (m\varrho + b \right ) \right \}
+    \alpha \exp \left \{ -2B\varrho^{2} \right \}
+
+  Background Correction
+
+  .. :math:
+
+    I_{\varrho}^{\circ}
+    \alpha^{-1} \exp \left \{ 2B\varrho^{2} \right \} =
+    I_{\varrho} - \left (m\varrho + b \right ) 
+  """
+  return S['scaled'] * numpy.exp(2 * B * S['scaled bmrho']) / alpha

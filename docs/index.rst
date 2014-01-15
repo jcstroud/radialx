@@ -616,6 +616,116 @@ associated value.
 Note that yaml is case sensitive.
 
 
+Scaling Patterns
+----------------
+
+Scaling is achieved using the *averaging* mode of the **profilex**
+utility, which is still not officially documented. However,
+this functionality is available, so a brief discussion of the
+method follows.
+
+Method of Scaling
+~~~~~~~~~~~~~~~~~
+
+When scaling, the integrated pattern intensity in the resolution
+range of interest (specfied by the ``roi`` setting) is partitioned
+into the number of bins specified by the setting ``roi_bins``.
+Each bin has a center at :math:`\varrho`, or
+:math:`\sin(\theta)/\lambda`, where :math:`\theta` is the
+Bragg angle. The scaled intensity :math:`I_{\varrho}^{\circ}`
+for a bin with center :math:`\varrho`
+is related to the expermental intensity :math:`I_{\varrho}`
+for that bin by the equation
+
+.. math::
+    :label: scaled_intensity
+
+    I_{\varrho}^{\circ} =
+    \left \{ I_{\varrho} - \left (m\varrho + b \right ) \right \}
+    \alpha \exp \left \{ -2B\varrho^{2} \right \}
+
+Where :math:`\alpha`, :math:`m`, :math:`b`, and :math:`B` are fit
+during scaling to the pattern specified by the ``scaled_to`` setting.
+The parameter :math:`B` is the isotropic temperature factor and
+:math:`\alpha` is the overall scale.
+
+Background Correction
+~~~~~~~~~~~~~~~~~~~~~
+
+The parameters :math:`m` and :math:`b` in
+Equation :eq:`scaled_intensity` estimate the contribution
+of background scatter, such that the following equation describes
+the background correction of experimental intensities
+:math:`I_{\varrho}`:
+
+.. math::
+    :label: background_corrected
+
+    I_{\varrho}^{\circ}
+    \alpha^{-1} \exp \left \{ 2B\varrho^{2} \right \} =
+    I_{\varrho} - \left (m\varrho + b \right ) 
+
+Note that the expression :math:`m\varrho + b` in
+Equation :eq:`background_corrected` defines a straight
+line, meaning that the background scatter is coarsely estimated
+to require a simple linear correction. This coarseness reduces
+the risk of overfitting the background.
+
+Background correction is applied with the ``background_correction``
+setting using the the reference pattern specified by ``scaled_to``.
+In other words, the background correction is estimated directly from
+scaling.
+
+Background correction will fail if an attempt is made to
+scale more than one pattern to the reference pattern. The reason
+can be seen on the left hand side of Equation
+:eq:`background_corrected`, which implies that the reference
+intensities (anlagous to the scaled intensities :math:`I_{\varrho}^{\circ}`)
+must be scaled with :math:`\alpha` and corrected for
+the isotropic temperature factor :math:`B`.
+Since scaling produces unique values of these fitting parameters
+for each pair of patterns, **profilex** will terminate with
+an error if more than one pair is specified for scaling while
+background correction is turned on. Scaling more than
+two patterns simultaneously is not yet supported.
+
+Experimental Considerations
++++++++++++++++++++++++++++
+
+It should be emphasized that the proper experimental way
+to correct for background is to take a background exposure
+(*i.e.* an exposure with no sample but with a holder, etc.)
+and subtract the blank from the otherwise equivalent exposure
+of a sample. This subtraction can be achieved with the *difference*
+mode of the **profilex** utility.
+
+
+Goodness of Fit
+~~~~~~~~~~~~~~~
+
+The goodness of fit between patterns is measured if
+a reference pattern is specified by the ``scaled_to`` setting.
+The metric for goodness of fit is called :math:`R_{o}^{2}`,
+which is calculated using the following equation:
+
+.. math::
+     :label: Ro_squared
+
+     R_{o}^{2} =
+       \dfrac{\sum_{\varrho}
+                (I_{\varrho}^{\circ} - I_{\varrho}')^{2}}
+             {\sum_{\varrho}
+                (\left < I' \right > - I_{\varrho}')^{2}}
+
+Where :math:`I_{\varrho}'` is the intensity of the bin
+with a middle at :math:`\varrho` for
+the reference pattern. The term :math:`\left < I' \right >`
+is the average bin intensity for the reference pattern.
+
+The :math:`R_{o}^{2}` metric has been described in
+Proc Natl Acad Sci U S A. 2012 May 15;109(20):7717-22.
+
+
 .. _`source distribution`: Download_
 .. _`yaml`: http://www.yaml.org/
 

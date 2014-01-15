@@ -17,7 +17,7 @@ simulation :
   # d_max: maximum d-spacing (lowest resolution)
   d_max : 22
   # d_min: minimum d-spacing (highest resolution)
-  d_min : 4.2
+  d_min : 3.8
 
   # see SHELXL 97 manual chapter 7 page 7
   # http://shelx.uni-ac.gwdg.de/SHELX/shelx97.pdf
