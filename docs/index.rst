@@ -430,7 +430,7 @@ is :math:`F_{hk\ell}`, the corresponding intensity
               \dfrac{-2B\sin^{2}\theta}{\lambda^{2}}
            \right )
 
-Where :math:`V` is the unit cell volume, :math:`M_{hk\ell}` is
+:math:`V` is the unit cell volume, :math:`M_{hk\ell}` is
 the multiplicity of the reflection, :math:`B` the isotropic
 temperature factor, and :math:`F_{hk\ell}^{*}` is the
 complex conjugate of :math:`F_{hk\ell}`.
@@ -476,7 +476,7 @@ called a "Cauchy distribution"). This distribution takes the form
                   \left ( 2\theta_{i} - 2\theta_{hk\ell} \right )^2
        \right ]^{-1}
 
-Where :math:`A_{J}^{L}` is the intensity contribution
+:math:`A_{J}^{L}` is the intensity contribution
 at angle :math:`\theta_{i}`, :math:`H_{B}` is the FWHM
 of the peak, and :math:`\theta_{hk\ell}` is the angle of
 diffraction for the Miller index :math:`hk\ell`.  
@@ -637,38 +637,42 @@ Each bin has a center at :math:`\varrho`, or
 Bragg angle. The scaled intensity :math:`I_{\varrho}^{\circ}`
 for a bin with center :math:`\varrho`
 is related to the expermental intensity :math:`I_{\varrho}`
-for that bin by the equation
+for that bin by Equation :eq:`scaled_intensity`:
 
 .. math::
     :label: scaled_intensity
 
     I_{\varrho}^{\circ} =
-    \left \{ I_{\varrho} - \left (m\varrho + b \right ) \right \}
-    \alpha \exp \left \{ -2B\varrho^{2} \right \}
+    \alpha \left \{
+              I_{\varrho} -
+              \left (m\varrho + b \right )
+           \right \}
+    \exp \left \{ -2B\varrho^{2} \right \}
 
-Where :math:`\alpha`, :math:`m`, :math:`b`, and :math:`B` are fit
-during scaling to the pattern specified by the ``scaled_to`` setting.
-The parameter :math:`B` is the isotropic temperature factor and
-:math:`\alpha` is the overall scale.
+The terms :math:`\alpha`, :math:`m`, :math:`b`, and :math:`B`
+are fit during scaling to the pattern specified by the ``scaled_to``
+setting. The parameter :math:`B` is the isotropic temperature factor
+and :math:`\alpha` is the overall scale.
 
 Background Correction
 ~~~~~~~~~~~~~~~~~~~~~
 
 The parameters :math:`m` and :math:`b` in
 Equation :eq:`scaled_intensity` estimate the contribution
-of background scatter, such that the following equation describes
-the background correction of experimental intensities
+of background scatter, such that the
+Equation :eq:`background_corrected` describes the background
+correction of experimental intensities
 :math:`I_{\varrho}`:
 
 .. math::
     :label: background_corrected
 
     I_{\varrho}^{\circ}
-    \alpha^{-1} \exp \left \{ 2B\varrho^{2} \right \} =
+    \exp \left \{ 2B\varrho^{2} \right \} \alpha^{-1} =
     I_{\varrho} - \left (m\varrho + b \right ) 
 
 Note that the expression :math:`m\varrho + b` in
-Equation :eq:`background_corrected` defines a straight
+Equation :eq:`background_corrected` describes a straight
 line, meaning that the background scatter is coarsely estimated
 to require a simple linear correction. This coarseness reduces
 the risk of overfitting the background.
@@ -676,23 +680,38 @@ the risk of overfitting the background.
 Background correction is applied with the ``background_correction``
 setting using the the reference pattern specified by ``scaled_to``.
 In other words, the background correction is estimated directly from
-scaling.
+scaling, which assumes that the reference pattern has no background
+(*i.e.* the reference pattern comes from a model).
 
 Background correction will fail if an attempt is made to
 scale more than one pattern to the reference pattern. The reason
 can be seen on the left hand side of Equation
 :eq:`background_corrected`, which implies that the reference
-intensities (anlagous to the scaled intensities :math:`I_{\varrho}^{\circ}`)
-must be scaled with :math:`\alpha` and corrected for
-the isotropic temperature factor :math:`B`.
+intensities (analogous to the scaled intensities
+:math:`I_{\varrho}^{\circ}`) are scaled with :math:`\alpha`
+and corrected for the isotropic temperature factor :math:`B`
+to make them comprable to the background-corrected experimental
+intensities. Thus, the scaled reference intensities
+:math:`I_{\varrho}^{\prime\circ}` are
+described by Equation :eq:`scaled_reference`:
+
+.. math::
+    :label: scaled_reference
+
+    I_{\varrho}^{\prime\circ} =
+    I_{\varrho}^{\prime}
+    \exp \left \{ 2B\varrho^{2} \right \} \alpha^{-1}
+
+
 Since scaling produces unique values of these fitting parameters
 for each pair of patterns, **profilex** will terminate with
 an error if more than one pair is specified for scaling while
 background correction is turned on. Scaling more than
-two patterns simultaneously is not yet supported.
+two patterns *simultaneously* to find a common set of scaling
+parameters is not yet supported.
 
-Experimental Considerations
-+++++++++++++++++++++++++++
+Experimental Considerations in Background Correction
+++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 It should be emphasized that the proper experimental way
 to correct for background is to take a background exposure
@@ -708,7 +727,7 @@ Goodness of Fit
 The goodness of fit between patterns is measured if
 a reference pattern is specified by the ``scaled_to`` setting.
 The metric for goodness of fit is called :math:`R_{o}^{2}`,
-which is calculated using the following equation:
+which is calculated using Equation :eq:`Ro_squared`.
 
 .. math::
      :label: Ro_squared
@@ -719,7 +738,7 @@ which is calculated using the following equation:
              {\sum_{\varrho}
                 (\left < I' \right > - I_{\varrho}')^{2}}
 
-Where :math:`I_{\varrho}'` is the intensity of the bin
+:math:`I_{\varrho}'` is the intensity of the bin
 with a middle at :math:`\varrho` for
 the reference pattern. The term :math:`\left < I' \right >`
 is the average bin intensity for the reference pattern.
