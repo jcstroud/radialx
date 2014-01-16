@@ -14,10 +14,10 @@ x-ray powder diffraction patterns from models.
 The most complete documentation is available at
 http://pythonhosted.org/radialx/.
 
-Documented Functionalities
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+Fully Documented Functionalities
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-At present, the only documented functionalities of RadialX are
+At present, the only 100% documented functionalities of RadialX are
 
 1. The simulation of powder diffraction patterns
    from PDB files using the utility called **powderx**.
@@ -27,10 +27,10 @@ At present, the only documented functionalities of RadialX are
 
 Detailed usage for powderx_ and headerx_ are below.
 
-Undocumented Functionalities
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Less Documentd Functionalities
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Other, undocumented, functionalities correspond to "modes" of the
+Other, less documented, functionalities correspond to "modes" of the
 utility called **profilex**:
 
 - *centering* mode: Finding the centers of powder diffraction images
@@ -46,10 +46,12 @@ Although **profilex** is fully functional and heavily tested, its
 user interface (i.e. config file format, etc.) is very likely to
 change. For example, the modes will probably be split into different
 different utilities and several config file parameters will
-probably be renamed.
+probably be renamed. The **profilex** utility is fairly well documented by
+comments in the config files that populate the ``test/test-profilex``
+directory of the source distribution, as explained below.
 
-It is hoped that the entire RadialX package
-will be fully documented soon.
+It is hoped that the entire RadialX package will be fully
+and heavily documented soon.
 
 .. _adxv: http://www.scripps.edu/~arvai/adxv.html
 
