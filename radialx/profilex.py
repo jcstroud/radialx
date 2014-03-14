@@ -290,15 +290,18 @@ def profile_main():
     job_pb.deactivate()
   elif general['mode'] == "difference":
     config = cfg['difference']
-    config['images'] = [config['positive'], config['negative']]
+    if config['scaling_target'] in ("NONE", "None", "none", None):
+      config['scaling_target'] = None
+    config['images'] = [config['negative'], config['positive']]
     # adapting difference config to averaging config
     # maybe just change the settings file format?
-    config['scaled_to'] = config['positive']
+    config['scaled_to'] = config['negative']
     config['roi'] = config['limits']
     config['roi_bins'] = config['bins']
     config['img_bins'] = config['bins']
     config['norm_type'] = None
     config['stretch'] = False
+    config['do_norm'] = False
     images = _radialx.get_images(cfg, imagesdb, "difference")
     keys = [k for (k, d) in images]
     pltcfg = _radialx.load_config(config['plot_config'])
@@ -319,15 +322,21 @@ def profile_main():
     else:
       T = TCs[1]
       C = TCs[0]
-    Cs = [C]
-    std_outlet = StdOutlet(tk)
-    table = None
-    _radialx.scale_several(config, Cs, T, general, std_outlet, table)
+    if config['scaling_target'] is None:
+      T['scaled'] = T['sum Is']
+      C['scaled'] = C['sum Is']
+      _radialx.bin_equivalent(T)
+      _radialx.bin_equivalent(C)
+    else:
+      Cs = [C]
+      std_outlet = StdOutlet(tk)
+      table = None
+      _radialx.scale_several(config, Cs, T, general, std_outlet, table)
     msc = ms.copy()
     nimgs = _radialx.plot_images(plt, msc, config, pltcfg, 0)
     statusvar.set("%s Images Processed and Plotted" % nimgs)
     twoths = T['bin middles two-theta']
-    avis = T['scaled'] - C['scaled']
+    avis = C['scaled'] - T['scaled']
     if avis.min() < 0:
       avis = avis - avis.min()
     spectrum_file = config['output'] + ".yml"

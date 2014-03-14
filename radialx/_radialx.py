@@ -76,7 +76,7 @@ GROUP_END = ")"
 GROUP_SLICE = slice(len(GROUP_START), -len(GROUP_END))
 
 MAXB = 10
-MAXLIK = 1e9
+MAXDIF = 1e9
 
 def load_config(cfg_file):
   if cfg_file.endswith(('.cfg', '.ini')):
@@ -284,10 +284,10 @@ def integrate(data, nbins, disc, minI=None,
       rjcts.append(idxs[:, rjct_idxs])
   sigma = numpy.std(numpy.concatenate(all_values))
   progress(msg, 1.0)
-  sums = numpy.array(sums)
-  means = numpy.array(means)
-  stds = numpy.array(stds)
-  ns = numpy.array(ns)
+  sums = numpy.array(sums, dtype=float)
+  means = numpy.array(means, dtype=float)
+  stds = numpy.array(stds, dtype=float)
+  ns = numpy.array(ns, dtype=int)
   return {
            'sums': sums,
            'means': means,
@@ -1225,16 +1225,15 @@ def plot_image(plt, measurement, config, pltcfg, plot_number):
   tick_locs = [locs_func(px, experiment) for px in bin_middles_px]
   tick_locs = numpy.array(tick_locs)
 
-  smoothed = signals.smooth(sums, window_len=window_len)
-  if pltcfg['smoothed']:
-    whys = smoothed
+  if do_smoothed:
+    whys = signals.smooth(sums, window_len=window_len)
   else:
     whys = sums
   fctr = 1.0
   if config['stretch']:
     whys = stretch(whys, bois)
-  if config['scaled_to']:
-    whys = measurement['scaled']
+  # if config['scaled_to']:
+  #   whys = measurement['scaled']
   elif config['do_norm'] and (norm_func is not None):
     fctr = norm_func([whys[b] for b in bois])
     whys = whys/fctr
@@ -1660,19 +1659,27 @@ def make_integrator(measurement, scaled=False):
 
 def bin_for_scaling(m, N, res_min, res_max, norm=False):
   experiment = m['experiment']
-  _ig = make_integrator(m)
-  bbres_bbrhos = get_bbres_bbrhos_from_N(N, res_min, res_max)
-  bbres = bbres_bbrhos[:,0,:]
-  bbrhos = bbres_bbrhos[:,1,:]
-  scaled = numpy.array([_ig(p, q) for (p, q) in bbres])
+  if N is None:
+    bbres = numpy.array(m['bin borders res'])
+    bbrhos = numpy.array(m['bin borders rho'])
+  else:
+    _ig = make_integrator(m)
+    bbres_bbrhos = get_bbres_bbrhos_from_N(N, res_min, res_max)
+  bbres = bbres_bbrhos[0]
+  bbrhos = bbres_bbrhos[1]
+  if N is None:
+    scaled = numpy.array(m['sum Is'])
+  else:
+    scaled = numpy.array([_ig(p, q) for (p, q) in bbres])
   if norm:
     scaled = scaled / scaled.sum()
+    m['normalized'] = (res_min, res_max)
+    m['scaled to'] = m['image_key']
   bbpx = vec_res2radfpx(bbres, experiment)
   bpx = numpy.hstack([bbpx[0], bbpx[1,-1:]])
   bmpx = (bbpx[:,0] + bbpx[:,1]) / 2.0
-  if norm:
-    m['normalized'] = (res_min, res_max)
-    m['scaled to'] = m['image_key']
+  if N is None:
+    N = m['bins']
   # 'average Is' & 'Is over sigma'
   m['scaled'] = scaled
   # 'bins of interest'
@@ -1756,6 +1763,9 @@ def write_spectrum(spectrum_file, model_name,
 def bin_equivalent(m):
   """
   The scaled binning is *equivalent* to the integration binning.
+
+  This should not change any existing values of `m`, but will
+  add a few keys.
   """
   experiment = m['experiment']
   brhos = vec_radpx2rho(m['bin borders px'], experiment)
@@ -1780,7 +1790,7 @@ def bin_equivalent(m):
 def get_bbres_bbrhos_from_N(N, res_min, res_max):
   """
   Returns the fancy indices for the bin borders in resolution (bbres)
-  and in rho (bbrhos), running from res_min to res max, inclusinve.
+  and in rho (bbrhos), running from res_min to res max, inclusively.
   """
   rho_min = res2rho(res_min)
   rho_max = res2rho(res_max)
@@ -1793,7 +1803,7 @@ def get_bbres_bbrhos_from_N(N, res_min, res_max):
   bres = numpy.array([rho2res(rho) for rho in brhos])
   # bin borders in res
   bbres = numpy.array([bres[:-1], bres[1:]]).T
-  bbres_bbrhos = numpy.array([bbres, bbrhos]).swapaxes(0, 1)
+  bbres_bbrhos = numpy.array([bbres, bbrhos])
   return bbres_bbrhos
 
 def get_bois(C, res_min, res_max):
@@ -1819,7 +1829,7 @@ def get_bbres_bbrhos_from_C(C, res_min, res_max):
   brhos = vec_radpx2rho(bpxois, experiment)
   bbres = numpy.array([bres[1:], bres[:-1]]).T
   bbrhos = numpy.array([brhos[1:], brhos[:-1]]).T
-  bbres_bbrhos = numpy.array([bbres, bbrhos]).swapaxes(0,1)
+  bbres_bbrhos = numpy.array([bbres, bbrhos])
   return bbres_bbrhos
 
 
@@ -1838,7 +1848,7 @@ def get_bbres_bbrhos_from_C(C, res_min, res_max):
 #     else:
 #       alpha, beta, B = args
 #     if alpha <= 0:
-#       rs = numpy.zeros(bbrhos.size) + MAXLIK
+#       rs = numpy.zeros(bbrhos.size) + MAXDIF
 #     else:
 #       def _cor(ii, lo, hi):
 #         avrho = (lo + hi) / 2
@@ -1856,10 +1866,73 @@ def get_bbres_bbrhos_from_C(C, res_min, res_max):
 #   return _r
 
 
-def make_rsqer_bg(C, T, params, buoyancy=1):
-  # background estimation
-  # \left \{ I_{\varrho} - \left (m\varrho + b \right ) \right \}
-  # \alpha \exp \left \{ -2B\varrho^{2} \right \}
+def make_rsqer_simple(C, T, params, buoyancy=None):
+  """
+  Finds a simple scaling function f, such that
+
+     f(A, k) = AI + k
+
+  where I is a vector of intensities.
+
+  The `params` argument is taken only to maintain isomorphism.
+  It's not used.
+  """
+  bbrhos = T['scaled gbbrho']
+  def _r(args):
+    if len(args) == 2:
+      A, k = args
+    else:
+      msg = "Number of args should be 2: %s" % args
+      raise ParameterError(msg)
+    # A can't be negative
+    if A <= 0:
+      rs = numpy.zeros(bbrhos.size) + MAXDIF
+    else:
+      # kernel: the minimalist scaling function
+      def _cor(ii):
+        return (A * ii) + k
+      rs = []
+      # apply the kernel function over all bins
+      for iiC, iiT in izip(C['scaled'], T['scaled']):
+        cor_iiC = _cor(iiC)
+        if (cor_iiC < iiT) and (buoyancy is not None):
+          dif = buoyancy * (cor_iiC - iiT)
+        else:
+          dif = cor_iiC - iiT
+        rs.append(dif)
+    return numpy.array(rs)
+  return _r
+
+
+
+def make_rsqer_bg(C, T, params, buoyancy=None):
+  """
+  Returns function f, which is used as such:
+
+  Given vector I of intensities, then vector X is 
+
+     X = f(I)
+
+  Where x_i is an element of X.
+
+  Thus, f returns an array of differences
+
+      \delta_i = <x> - x_i
+
+  Which become the elements of summation in least-squared
+  optimization via :func:`scipy.optimize.leastsq`:
+
+      \sum_i \delta_i^2
+
+  The returned function f incorporates background estimation:
+
+      \left \{ I_{\varrho} - \left (m\varrho + b \right ) \right \}
+      \alpha \exp \left \{ -2B\varrho^{2} \right \}
+
+  The differences \delta_i can be multiplied by a `buoyancy`
+  to ensure that the scaled pattern floats above the reference
+  pattern.
+  """
   bbrhos = T['scaled gbbrho']
   exp = math.exp
   def _r(args):
@@ -1871,15 +1944,18 @@ def make_rsqer_bg(C, T, params, buoyancy=1):
     else:
       msg = "Number of args should be 3 or 4: %s" % args
       raise ParameterError(msg)
+    # alph can't be negative
     if alpha <= 0:
-      rs = numpy.zeros(bbrhos.size) + MAXLIK
+      rs = numpy.zeros(bbrhos.size) + MAXDIF
     else:
+      # kernel: the background correction function
       def _cor(ii, lo, hi):
         avrho = (lo + hi) / 2
         return (alpha * (ii - ((m * avrho) + b)) *
                 exp(-2.0 * B * avrho**2))
       rs = []
       iii = izip(bbrhos, C['scaled'], T['scaled'])
+      # apply the kernel function over all bins
       for (lo_rho, hi_rho), iiC, iiT in iii:
         cor_iiC = _cor(iiC, lo_rho, hi_rho)
         if (cor_iiC > iiT) and (buoyancy is not None):
@@ -1890,67 +1966,97 @@ def make_rsqer_bg(C, T, params, buoyancy=1):
     return numpy.array(rs)
   return _r
 
-def scale(C, T, N, res_min, res_max, params, buoyancy):
+RSQRER_MAP = { "background" : make_rsqer_bg,
+               "simple" : make_rsqer_simple,
+               None : None }
+
+def scale(config, C, T, N, res_min, res_max, params, buoyancy):
   """
-  Spectrum `C` will be scaled to `T`.
+  Pattern `C` will be scaled to `T`.
   """
-  if buoyancy is None:
-    if "normalized" not in T:
-      bin_for_scaling(T, N, res_min, res_max, norm=True)
-    bin_for_scaling(C, N, res_min, res_max)
-    buoyancy = 1
-  else:
-    if "scaled to" not in T:
-      bin_equivalent(T)
-      T['scaled to'] = T['image_key']
+  scaling_function = config.setdefault("scaling_target", "background")
+  if scaling_function is None:
+    bin_equivalent(T)
     bin_equivalent(C)
-  f_rsqr = make_rsqer_bg(C, T, params, buoyancy)
-  if params is None:
-    # [alpha, m, b B]
-    guesses = [1.0, 0.0, 0.0, 0.0]
-    aaa = optimize.leastsq(f_rsqr, guesses)
-    if 1 <= aaa[-1] <= 4:
-      alpha, m, b, B = aaa[0]
-    else:
-      msg = "Optimization failed: %s" % aaa
-      raise OptimizationError(msg)
+    T['scaled to'] = T['image_key']
+    C['scaled to'] = C['image_key']
+    C['scaled score'] = None
+    C['scaled worst'] = None
+    C['scaled'] = C['sum Is']
+    C['scaled Rsq'] = None
+    C['scaled params'] = None
   else:
-    # [alpha, m, b]
-    guesses = [1.0, 0.0, 0.0]
-    aaa = optimize.leastsq(f_rsqr, guesses)
-    if 1 <= aaa[-1] <= 4:
-      alpha, m, b = aaa[0]
-      B = params[3]
+    make_rsqer = RSQRER_MAP[scaling_function]
+    if buoyancy is None:
+      if "normalized" not in T:
+        bin_for_scaling(T, N, res_min, res_max, norm=True)
+      bin_for_scaling(C, N, res_min, res_max)
     else:
-      raise Exception, aaa
-  exp = math.exp
-  # no background estimation
-  # def _cor(ii, ab):
-  #   avrho = ab.mean()
-  #   return ii * alpha * exp(-2.0 * B * avrho**2) + beta
-  # background estimation
-  def _cor(ii, ab):
-    avrho = ab.mean()
-    return (alpha * (ii - ((m * avrho) + b)) *
-            exp(-2.0 * B * avrho**2))
-  avIs = C['scaled']
-  sums = C['scaled']
-  bbrhos = C['scaled gbbrho']
-  # scaled = [_cor(ii, ab) for (ii, ab) in izip(avIs, bbrhos)]
-  scaled = [_cor(ii, ab) for (ii, ab) in izip(sums, bbrhos)]
-  scaled = numpy.array(scaled)
-  rsq = ((scaled - T['scaled'])**2).sum()
-  worst = ((T['scaled'].mean() - T['scaled'])**2).sum()
-  score = rsq / worst
-  C['scaled score'] = score
-  C['scaled worst'] = worst
-  C['scaled'] = scaled
-  C['scaled to'] = T['image_key']
-  C['scaled Rsq'] = rsq
-  # no background estimation
-  # C['scaled params'] = {'alpha':alpha, 'beta':beta, 'B':B}
-  # background estimation
-  C['scaled params'] = {'alpha':alpha, 'm': m, 'b':b, 'B':B}
+      if "scaled to" not in T:
+        bin_equivalent(T)
+        T['scaled to'] = T['image_key']
+      bin_equivalent(C)
+    f_rsqr = make_rsqer(C, T, params, buoyancy)
+    if scaling_function == "background":
+      if params is None:
+        # [alpha, m, b B]
+        guesses = [1.0, 0.0, 0.0, 0.0]
+        aaa = optimize.leastsq(f_rsqr, guesses)
+        if 1 <= aaa[-1] <= 4:
+          alpha, m, b, B = aaa[0]
+        else:
+          msg = "Optimization failed: %s" % (aaa,)
+          raise OptimizationError(msg)
+      else:
+        # [alpha, m, b]
+        guesses = [1.0, 0.0, 0.0]
+        aaa = optimize.leastsq(f_rsqr, guesses)
+        if 1 <= aaa[-1] <= 4:
+          alpha, m, b = aaa[0]
+          B = params[3]
+        else:
+          raise Exception, aaa
+      exp = math.exp
+      # no background estimation
+      # def _cor(ii, ab):
+      #   avrho = ab.mean()
+      #   return ii * alpha * exp(-2.0 * B * avrho**2) + beta
+      # background estimation
+      def _cor(ii, ab):
+        avrho = ab.mean()
+        return (alpha * (ii - ((m * avrho) + b)) *
+                exp(-2.0 * B * avrho**2))
+    elif scaling_function == "simple":
+      guesses = [1.0, 0.0]
+      aaa = optimize.leastsq(f_rsqr, guesses)
+      if 1 <= aaa[-1] <= 4:
+        a, k = aaa[0]
+      else:
+        msg = "Optimization failed: %s" % (aaa,)
+        raise OptimizationError(msg)
+      def _cor(ii, ab):
+        return a * ii + k
+    avIs = C['scaled']
+    sums = C['scaled']
+    bbrhos = C['scaled gbbrho']
+    # scaled = [_cor(ii, ab) for (ii, ab) in izip(avIs, bbrhos)]
+    scaled = [_cor(ii, ab) for (ii, ab) in izip(sums, bbrhos)]
+    scaled = numpy.array(scaled)
+    rsq = ((scaled - T['scaled'])**2).sum()
+    worst = ((T['scaled'].mean() - T['scaled'])**2).sum()
+    score = rsq / worst
+    C['scaled score'] = score
+    C['scaled worst'] = worst
+    C['scaled'] = scaled
+    C['scaled to'] = T['image_key']
+    C['scaled Rsq'] = rsq
+    # no background estimation
+    # C['scaled params'] = {'alpha':alpha, 'beta':beta, 'B':B}
+    # background estimation
+    if scaling_function == "simple":
+      C['scaled params'] = {"a":a, "k":k}
+    elif scaling_function == "background":
+      C['scaled params'] = {"alpha":alpha, "m": m, "b":b, "B":B}
   return C
 
 def serialize_array(ary, name="ary"):
@@ -1980,7 +2086,7 @@ def scale_several(config, Cs, T, general, outlet, table):
   """
   res_min, res_max = config['roi']
   params = config.get('scale_parameters', None)
-  save_score = config['save_score']
+  save_score = config.get("save_score", None)
   buoyancy = config.get('buoyancy')
   N = config['roi_bins']
   if res_min is None:
@@ -2001,14 +2107,27 @@ def scale_several(config, Cs, T, general, outlet, table):
                   parent=outlet.parent)
       config['save_score'] = False
   for C in Cs:
-    scaled = scale(C, T, N, res_min, res_max, params, buoyancy)
+    scaled = scale(config, C, T, N, res_min, res_max, params, buoyancy)
     outlet("== %s" % C['image_key'])
-    outlet("==      score: %09.7f" % C['scaled score'])
-    outlet("==      R**2: %09.7f" % C['scaled Rsq'])
-    outlet("==      worst: %09.7f" % C['scaled worst'])
-    tmplt = "==      alpha: %(alpha)f, m: %(m)f, b: %(b)f, B: %(B)f"
-    outlet(tmplt % C['scaled params'])
+    if config['scaling_target'] in ("background", "simple"):
+      outlet("==      score: %09.7f" % C['scaled score'])
+      outlet("==      R**2: %09.7f" % C['scaled Rsq'])
+      outlet("==      worst: %09.7f" % C['scaled worst'])
+    else:
+     save_score = False
+    if config['scaling_target'] == "background":
+      tmplt = "==      alpha: %(alpha)f, m: %(m)f, b: %(b)f, B: %(B)f"
+      msg = tmplt % C['scaled params']
+    elif config['scaling_target'] == "simple":
+      tmplt = "==      a: %(a)f, k: %(k)f"
+      msg = tmplt % C['scaled params']
+    elif config['scaling_target'] is None:
+      msg = "==      No Scaling"
+    outlet(msg)
     outlet(hline)
+    if config['scaling_target'] == "background":
+      alpha = C['scaled params']['alpha']
+      B = C['scaled params']['B']
     if save_score:
       if 'image' not in T:
         msg = "Reference for 'scaled_to' should be an image."
@@ -2017,10 +2136,8 @@ def scale_several(config, Cs, T, general, outlet, table):
       image_key = T['image_key']
       score = C['scaled score']
       Rsq = C['scaled Rsq']
-      alpha = C['scaled params']['alpha']
       m = C['scaled params']['m']
       b = C['scaled params']['b']
-      B = C['scaled params']['B']
       json_image = json.dumps(T['image'])
       if 'spectrum' in C:
         spectrum = C['spectrum']
@@ -2041,7 +2158,7 @@ def scale_several(config, Cs, T, general, outlet, table):
                      image=json_image, pdb=pdb, spectrum=spectrum,
                      config=json_config, general=json_general)
         table.commit()
-  if config['background_correction']:
+  if config.get("background_correction", False):
     if len(Cs) > 1:
       msg = "Background correction can not be used on >1 pattern."
       raise ConfigError(msg)

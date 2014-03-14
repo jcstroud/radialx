@@ -1,3 +1,14 @@
+0.8.8, 2014-03-13 -- Fixed bug in difference mode of profilex.
+                     Fixed sense of positive and negative images with
+                     respect to scaling and buoyancy in difference mode.
+                     The negative image is now the reference image
+                     and the positive image is buoyant.
+                     Also allowed selection of scaling target
+                     for difference mode: background or simple.
+                     Updated test/example profile.cfg file accordingly.
+                     Finally, fixed plotting bug where averaged patterns
+                     were not smoothed in the plot if they were scaled.
+
 0.8.7, 2014-01-15 -- Small improvements to the docs.
 
 0.8.6, 2014-01-15 -- Small improvements to the docs.
