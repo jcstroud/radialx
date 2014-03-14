@@ -23,7 +23,8 @@ At present, the only 100% documented functionalities of RadialX are
 2. Displaying of diffraction image header information
    using the utility called **headerx**.
 
-Detailed usage for **powderx** and **headerx** are below.
+Detailed usage for **powderx** and **headerx** are
+explained within the documentation_.
 
 Less Documentd Functionalities
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -46,12 +47,14 @@ change. For example, the modes will probably be split into different
 different utilities and several config file parameters will
 probably be renamed. The **profilex** utility is fairly well documented by
 comments in the config files that populate the ``test/test-profilex``
-directory of the source distribution, as explained below.
+directory of the source distribution, as explained in the
+documentation_.
 
 It is hoped that the entire RadialX package will be fully
 and heavily documented soon.
 
 .. _adxv: http://www.scripps.edu/~arvai/adxv.html
+.. _documentation: http://pythonhosted.org/radialx/
 
 
 Home Page & Repository
