@@ -23,7 +23,7 @@ At present, the only 100% documented functionalities of RadialX are
 2. Displaying of diffraction image header information
    using the utility called **headerx**.
 
-Detailed usage for powderx_ and headerx_ are below.
+Detailed usage for **powderx** and **headerx** are below.
 
 Less Documentd Functionalities
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

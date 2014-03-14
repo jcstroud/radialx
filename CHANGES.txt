@@ -1,3 +1,5 @@
+0.8.9, 2014-03-14 -- Fixed rst in README.
+
 0.8.9, 2014-03-14 -- Updated README for version 0.8, finally.
                      Added difference plot to difference mode.
                      Added new options to differenc mode config,
