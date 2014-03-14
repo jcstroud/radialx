@@ -18,6 +18,9 @@ from pygmyplot import xy_heat
 from pygmyplot.pygmyplotlib import MyXYPlot
 
 import _radialx
+
+from ordereddict import OrderedDict
+
 from _version import __version__
 
 __module_name__ = "profilex"
@@ -283,8 +286,8 @@ def profile_main():
       _radialx.scale_several(config, Cs, T, general, std_outlet, table)
     msc = ms.copy()
     msc.update(sp)
-    pmsc = msc.reversed()
-    nimgs = _radialx.plot_images(plt, pmsc, config, pltcfg, 0)
+    spmsc = msc.reversed()
+    nimgs = _radialx.plot_images(plt, spmsc, config, pltcfg, 0)
     statusvar.set("%s Images Processed and Plotted" % nimgs)
     task_pb.deactivate()
     job_pb.deactivate()
@@ -302,12 +305,17 @@ def profile_main():
     config['norm_type'] = None
     config['stretch'] = False
     config['do_norm'] = False
+    config['smooth_spectra'] = False
     images = _radialx.get_images(cfg, imagesdb, "difference")
     keys = [k for (k, d) in images]
     pltcfg = _radialx.load_config(config['plot_config'])
     plt = MyXYPlot(master=plot_f,
                    figsize=pltcfg['plot_size'],
                    dpi=pltcfg['dpi'])
+    plt2 = MyXYPlot(master=plot_f,
+                   figsize=pltcfg['plot_size'],
+                   dpi=pltcfg['dpi'],
+                   sibling=plt)
     # _radialx.plot_spectra(config, spectra, pltcfg, plt, cache=cache)
     ms = _radialx.averages(config, images,
                                    pltcfg=pltcfg,
@@ -342,8 +350,33 @@ def profile_main():
     spectrum_file = config['output'] + ".yml"
     _radialx.write_spectrum(spectrum_file,
                             config['output'], twoths, avis, False)
+
+    # manually build a spec record for load_spectra()
+    twoths_degs = T['bin middles two-theta degs']
+    record = OrderedDict()
+    record["filename"] = spectrum_file
+    for k in ["descr", "nickname", "wavelength"]:
+      record[k] = config[k]
+    record['__filepath__'] = spectrum_file
+    pattern = numpy.array([twoths_degs, avis]).T
+    record['__data__'] = OrderedDict()
+    record['__data__']['model'] = config['output']
+    record['__data__']['pattern'] = pattern
+    spectra = [(config['key'], record)]
+    sp = _radialx.load_spectra(config, spectra)
+    nimgs = _radialx.plot_images(plt, sp, config, pltcfg, 0) 
     task_pb.deactivate()
     job_pb.deactivate()
+    output = ["\n[%s]" % config['key']]
+    for (k, v)  in record.items():
+      if not k.startswith("__"):
+        try:
+          output.append("%s = %f" % (k, float(v)))
+        except (ValueError, TypeError):
+          output.append("%s = \"%s\"" % (k, v))
+    output = "\n".join(output) + "\n"
+    std_outlet = StdOutlet(tk)
+    std_outlet(output)
   elif general['mode'] == "recentering":
     config = cfg['recentering']
     image = imagesdb[config['recenter_image']]

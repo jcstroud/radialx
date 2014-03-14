@@ -880,8 +880,8 @@ def recenter(general, config, image,
     start_center = flip_pt(start_center)
 
   datadir = general['img_dir']
-  image['filepath'] = os.path.join(datadir, image['filename'])
-  adxv_file = open(image['filepath'], "rb")
+  image['__filepath__'] = os.path.join(datadir, image['filename'])
+  adxv_file = open(image['__filepath__'], "rb")
   header = read_header(adxv_file)
 
   rin, rout = config['disc']
@@ -997,8 +997,11 @@ def load_spectra(config, spectra):
   for k, spec in spectra:
     expt = {'WAVELENGTH':spec['wavelength']}
     expt.update(expt_defs)
-    key = (spec['filepath'],)
-    spectrum = yaml.load(open(spec['filepath']))
+    key = (spec['__filepath__'],)
+    if "__data__" in spec:
+      spectrum = spec['__data__']
+    else:
+      spectrum = yaml.load(open(spec['__filepath__']))
     if isinstance(spectrum, dict):
       spectrum = spectrum['pattern']
     spectrum = numpy.transpose(spectrum)
@@ -1088,6 +1091,22 @@ def expand(group, groups, added=None):
   return grouped
 
 def get_data(cfg, dirkey, groupkey, datadb, mode):
+  """
+  Returns the relevant records from the data base
+  `datadb`, either a "spectra" data base describing
+  powder diffraction pattern data structure files or
+  an image data base describing raw image files.
+
+  Returns a list of 2-tuples of (key, datadict).
+  Each datadict has the keys:
+
+     - filename
+     - descr
+     - nickname
+     - wavelength
+     - model (if in `datadb`)
+     - __filepath__ (created herein)
+  """
   group = cfg[mode][groupkey]
   keyed = []
   if group:
@@ -1100,16 +1119,45 @@ def get_data(cfg, dirkey, groupkey, datadb, mode):
     for k in keys:
       datum = datadb[k]
       filepath = os.path.join(datadir, datum['filename'])
-      datum['filepath'] = filepath
+      datum['__filepath__'] = filepath
       keyed.append((k, datum))
   return keyed
 
 def get_images(cfg, images, mode):
+  """
+  Returns the relevant records from the image data
+  base `images`, which describes raw image files.
+
+  Returns a list of 2-tuples of (key, data).
+  Each datadict has the keys:
+
+     - filename
+     - descr
+     - nickname
+     - wavelength
+     - model (if in `datadb`)
+     - __filepath__ (created in get_data()) 
+  """
   dirkey = 'img_dir'
   groupkey = 'images'
   return get_data(cfg, dirkey, groupkey, images, mode)
 
 def get_spectra(cfg, spectra, mode):
+  """
+  Returns the relevant records from the "spectra" data
+  base `spectra`, which describes powder diffraction pattern
+  data structure files.
+
+  Returns a list of 2-tuples of (key, data).
+  Each datadict has the keys:
+
+     - filename
+     - descr
+     - nickname
+     - wavelength
+     - model (if in `datadb`)
+     - __filepath__ (created in get_data())
+  """
   dirkey = 'spec_dir'
   groupkey = 'spectra'
   return get_data(cfg, dirkey, groupkey, spectra, mode)
@@ -1486,7 +1534,7 @@ def averages(config, images, pltcfg=None,
   measurements = OrderedDict()
   num_files = len(images)
   for filenum, (image_key, image) in enumerate(images):
-    image_file = image['filepath']
+    image_file = image['__filepath__']
     minI = image['min_i']
     params = (filenum+1, num_files, image_file)
     msg = "Averaging file %s of %s: %s." % params
@@ -1698,9 +1746,11 @@ def bin_for_scaling(m, N, res_min, res_max, norm=False):
   m['scaled gbbrho'] = bbrhos
   m['scaled gbbres'] = bbres
   bmrho = vec_radpx2rho(m['scaled bmpx'], experiment)
-  bm2th = vec_radpx2twothetadegs(m['scaled bmpx'], experiment)
+  bm2th = vec_radpx2twotheta(m['scaled bmpx'], experiment)
+  bm2th_degs = vec_radpx2twothetadegs(m['scaled bmpx'], experiment)
   m['scaled bmrho'] = bmrho
   m['scaled bm2th'] = bm2th
+  m['scaled bm2th degs'] = bm2th_degs
   return m
 
 def format_spectrum(model_name, twothetas, intensities, degrees):
@@ -1754,11 +1804,15 @@ def write_spectrum(spectrum_file, model_name,
   The output for the 2-theta values is in degrees.
   If `twothetas` are in degrees, then `degrees` should be ``True``;
   if `twothetas` are in radians, then `degrees` should be ``False``.
+
+  Returns the contents of the yaml file.
   """
-  spectrum = format_spectrum(model_name, twothetas, intensities, degrees)
+  spectrum = format_spectrum(model_name, twothetas,
+                             intensities, degrees)
+  spectrum += "\n"
   with open(spectrum_file, 'w') as specfile:
     specfile.write(spectrum)
-    specfile.write("\n")
+  return spectrum
 
 def bin_equivalent(m):
   """
@@ -1771,7 +1825,8 @@ def bin_equivalent(m):
   brhos = vec_radpx2rho(m['bin borders px'], experiment)
   bbrhos = numpy.array([brhos[:-1], brhos[1:]]).T
   bmrho = vec_radpx2rho(m['bin middles px'], experiment)
-  bm2th = vec_radpx2twothetadegs(m['bin middles px'], experiment)
+  bm2th = vec_radpx2twotheta(m['bin middles px'], experiment)
+  bm2th_degs = vec_radpx2twothetadegs(m['bin middles px'], experiment)
   # m['scaled'] = m['average Is']
   m['scaled'] = m['sum Is']
   m['scaled bois'] = m['bins of interest']
@@ -1780,11 +1835,13 @@ def bin_equivalent(m):
   m['scaled bmpx'] = m['bin middles px']
   m['scaled bmrho'] = bmrho
   m['scaled bm2th'] = bm2th
+  m['scaled bm2th degs'] = bm2th_degs
   m['scaled reshi'] = m['roi high']
   m['scaled reslo'] = m['roi low']
   m['scaled gbbrho'] = bbrhos
   m['bin middles rho'] = bmrho
   m['bin middles two-theta'] = bm2th
+  m['bin middles two-theta degs'] = bm2th_degs
   return m
   
 def get_bbres_bbrhos_from_N(N, res_min, res_max):

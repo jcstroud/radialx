@@ -1,10 +1,19 @@
+0.8.9, 2014-03-14 -- Updated README for version 0.8, finally.
+                     Added difference plot to difference mode.
+                     Added new options to differenc mode config,
+                     for plot to work and to create a database
+                     record for pattern database.
+                     Fixed a bug in difference mode where
+                     the two-theta angles in the difference file
+                     are incorrect.
+
 0.8.8, 2014-03-13 -- Fixed bug in difference mode of profilex.
                      Fixed sense of positive and negative images with
                      respect to scaling and buoyancy in difference mode.
                      The negative image is now the reference image
                      and the positive image is buoyant.
                      Also allowed selection of scaling target
-                     for difference mode: background or simple.
+                     for difference mode: background, simple, or none.
                      Updated test/example profile.cfg file accordingly.
                      Finally, fixed plotting bug where averaged patterns
                      were not smoothed in the plot if they were scaled.
