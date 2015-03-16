@@ -13,7 +13,7 @@ PRODUCTS = $(VERMODULE) $(DOCS)
 
 all : sdist
 
-LICENSE.txt :
+LICENSE.txt : FORCE
 	$(PYTHON) -c 'exec("import os; \
                             from ConfigParser import ConfigParser; \
                             from StringIO import StringIO; \
@@ -87,3 +87,5 @@ prune :
 
 scrub : clean prune
 	-rm -rf dist/ build/ $(PACKAGE).egg-info/
+
+FORCE :
