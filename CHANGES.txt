@@ -1,3 +1,5 @@
+0.8.14, 2015-03-16 -- Adding back license.
+
 0.8.13, 2015-03-16 -- Removed configobj dependency from setup.py.
                       Also from Makefile, which imports as an .inc.
                       Updated to use the MathJax CDN.
