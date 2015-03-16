@@ -45,7 +45,8 @@ extensions = ['sphinx.ext.autodoc', 'sphinx.ext.doctest', 'sphinx.ext.todo',
               'sphinx.ext.ifconfig', 'sphinx.ext.intersphinx']
 
 # MathJax
-matjax_path = "http://www.bravais.net/MathJax/MathJax.js"
+# mathjax_path = "http://www.bravais.net/MathJax/MathJax.js"
+mathjax_path = "https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

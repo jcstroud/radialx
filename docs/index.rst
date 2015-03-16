@@ -27,10 +27,10 @@ At present, the only 100% documented functionalities of RadialX are
 
 Detailed usage for powderx_ and headerx_ are below.
 
-Less Documentd Functionalities
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Less Documented Functionalities
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Other, less documented, functionalities correspond to "modes" of the
+Other less documented functionalities correspond to "modes" of the
 utility called **profilex**:
 
 - *centering* mode: Finding the centers of powder diffraction images
@@ -359,7 +359,7 @@ has the most parameters. Most of these parameters are self-explanatory.
 - ``B``: isotropic temperature factor; if the simulated pattern
    is to be scaled with experimental data, then ``B`` should be
    set to 0 because it will be refined during scaling
-- ``apply_Lp``: apply Lorentz polarization correction
+- ``apply_Lp``: apply `Lorentz polarization correction`_
   (``True`` or ``False``)
 - ``pattern_shells``: number of points in the simulated pattern;
   each point represents the integrated intensity of the shell
@@ -434,7 +434,7 @@ is :math:`F_{hk\ell}`, the corresponding intensity
 the multiplicity of the reflection, :math:`B` the isotropic
 temperature factor, and :math:`F_{hk\ell}^{*}` is the
 complex conjugate of :math:`F_{hk\ell}`.
-The term :math:`L_{p}` is the Lorentz polarization correction:
+The term :math:`L_{p}` is the `Lorentz polarization correction`_:
 
 .. math::
     :label: Lp
@@ -445,7 +445,7 @@ The term :math:`L_{p}` is the Lorentz polarization correction:
                {\sin^{2}\theta \cos\theta}
       \right ]
 
-The Lorentz polarization correction may be aplied
+The `Lorentz polarization correction`_ may be aplied
 to the simulated pattern using the ``apply_Lp`` setting
 within the ``simulation`` section of the **powderx** config file.
 
@@ -749,6 +749,7 @@ Proc Natl Acad Sci U S A. 2012 May 15;109(20):7717-22.
 
 .. _`source distribution`: Download_
 .. _`yaml`: http://www.yaml.org/
+.. _`Lorentz polarization correction`: http://reference.iucr.org/dictionary/Lorentz%E2%80%93polarization_correction
 
 
 .. toctree::

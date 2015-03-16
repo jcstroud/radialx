@@ -1,3 +1,10 @@
+0.8.13, 2015-03-16 -- Removed configobj dependency from setup.py.
+                      Also from Makefile, which imports as an .inc.
+                      Updated to use the MathJax CDN.
+                      Released 0.8.13.
+
+0.8.12, 2014-03-14 -- Added links for Lp correction in docs.
+
 0.8.11, 2014-03-14 -- Small fixes in README.
  
 0.8.10, 2014-03-14 -- Fixed rst in README.

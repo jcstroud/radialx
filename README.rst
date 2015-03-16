@@ -26,10 +26,10 @@ At present, the only 100% documented functionalities of RadialX are
 Detailed usage for **powderx** and **headerx** are
 explained within the documentation_.
 
-Less Documentd Functionalities
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Less Documented Functionalities
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Other, less documented, functionalities correspond to "modes" of the
+Other less documented functionalities correspond to "modes" of the
 utility called **profilex**:
 
 - *centering* mode: Finding the centers of powder diffraction images

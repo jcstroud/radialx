@@ -1960,7 +1960,44 @@ def make_rsqer_simple(C, T, params, buoyancy=None):
     return numpy.array(rs)
   return _r
 
+def make_rsqer_linear(C, T, params, buoyancy=None):
+  """
+  Finds a linear scaling function f, such that
 
+     f(A, k) = I + A\\varrho + k
+
+  where I is a vector of intensities and :math:`\\varrho`
+  is :math:'\\sin\\theta/\\lambda', such that :math:`\\theta`
+  is the Bragg angle.
+
+  The `params` argument is taken only to maintain isomorphism.
+  It's not used.
+  """
+  bbrhos = T['scaled gbbrho']
+  def _r(args):
+    if len(args) == 2:
+      A, k = args
+    else:
+      msg = "Number of args should be 2: %s" % args
+      raise ParameterError(msg)
+    # kernel: the linear scaling function
+    def _cor(ii, lo, hi):
+      avrho = (lo + hi) / 2
+      return ii - ((A * avrho) + k)
+    rs = []
+    iii = izip(bbrhos, C['scaled'], T['scaled'])
+    # apply the kernel function over all bins
+    for (lo_rho, hi_rho), iiC, iiT in iii:
+      cor_iiC = _cor(iiC, lo_rho, hi_rho)
+      # buyancy: scaled is buoyant on reference
+      if (iiT > cor_iiC) and (buoyancy is not None):
+        # penalize where T > C
+        dif = buoyancy * (cor_iiC - iiT)
+      else:
+        dif = cor_iiC - iiT
+      rs.append(dif)
+    return numpy.array(rs)
+  return _r
 
 def make_rsqer_bg(C, T, params, buoyancy=None):
   """
@@ -1974,17 +2011,17 @@ def make_rsqer_bg(C, T, params, buoyancy=None):
 
   Thus, f returns an array of differences
 
-      \delta_i = <x> - x_i
+      \\delta_i = <x> - x_i
 
   Which become the elements of summation in least-squared
   optimization via :func:`scipy.optimize.leastsq`:
 
-      \sum_i \delta_i^2
+      \\sum_i \\delta_i^2
 
   The returned function f incorporates background estimation:
 
-      \left \{ I_{\varrho} - \left (m\varrho + b \right ) \right \}
-      \alpha \exp \left \{ -2B\varrho^{2} \right \}
+      \\left \\{ I_{\varrho} - \\left (m\\varrho + b \\right ) \\right \\}
+      \\alpha \\exp \\left \\{ -2B\\varrho^{2} \\right \\}
 
   The differences \delta_i can be multiplied by a `buoyancy`
   to ensure that the scaled pattern floats above the reference
@@ -2024,6 +2061,7 @@ def make_rsqer_bg(C, T, params, buoyancy=None):
   return _r
 
 RSQRER_MAP = { "background" : make_rsqer_bg,
+               "linear" : make_rsqer_linear,
                "simple" : make_rsqer_simple,
                None : None }
 
@@ -2065,6 +2103,7 @@ def scale(config, C, T, N, res_min, res_max, params, buoyancy):
           msg = "Optimization failed: %s" % (aaa,)
           raise OptimizationError(msg)
       else:
+        # get B only from params
         # [alpha, m, b]
         guesses = [1.0, 0.0, 0.0]
         aaa = optimize.leastsq(f_rsqr, guesses)
@@ -2072,7 +2111,8 @@ def scale(config, C, T, N, res_min, res_max, params, buoyancy):
           alpha, m, b = aaa[0]
           B = params[3]
         else:
-          raise Exception, aaa
+          msg = "Optimization failed: %s" % (aaa,)
+          raise OptimizationError(msg)
       exp = math.exp
       # no background estimation
       # def _cor(ii, ab):
@@ -2083,6 +2123,17 @@ def scale(config, C, T, N, res_min, res_max, params, buoyancy):
         avrho = ab.mean()
         return (alpha * (ii - ((m * avrho) + b)) *
                 exp(-2.0 * B * avrho**2))
+    elif scaling_function == "linear":
+      guesses = [1.0, 0.0]
+      aaa = optimize.leastsq(f_rsqr, guesses)
+      if 1 <= aaa[-1] <= 4:
+        a, k = aaa[0]
+      else:
+        msg = "Optimization failed: %s" % (aaa,)
+        raise Exception(msg)
+      def _cor(ii, ab):
+        avrho = ab.mean()
+        return ii - ((a * avrho) + k)
     elif scaling_function == "simple":
       guesses = [1.0, 0.0]
       aaa = optimize.leastsq(f_rsqr, guesses)
@@ -2111,6 +2162,8 @@ def scale(config, C, T, N, res_min, res_max, params, buoyancy):
     # C['scaled params'] = {'alpha':alpha, 'beta':beta, 'B':B}
     # background estimation
     if scaling_function == "simple":
+      C['scaled params'] = {"a":a, "k":k}
+    elif scaling_function == "linear":
       C['scaled params'] = {"a":a, "k":k}
     elif scaling_function == "background":
       C['scaled params'] = {"alpha":alpha, "m": m, "b":b, "B":B}
@@ -2174,12 +2227,13 @@ def scale_several(config, Cs, T, general, outlet, table):
      save_score = False
     if config['scaling_target'] == "background":
       tmplt = "==      alpha: %(alpha)f, m: %(m)f, b: %(b)f, B: %(B)f"
-      msg = tmplt % C['scaled params']
+    if config['scaling_target'] == "linear":
+      tmplt = "==      a: %(a)f, k: %(k)f"
     elif config['scaling_target'] == "simple":
       tmplt = "==      a: %(a)f, k: %(k)f"
-      msg = tmplt % C['scaled params']
     elif config['scaling_target'] is None:
-      msg = "==      No Scaling"
+      tmplt = "==      No Scaling"
+    msg = tmplt % C['scaled params']
     outlet(msg)
     outlet(hline)
     if config['scaling_target'] == "background":

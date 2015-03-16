@@ -548,9 +548,12 @@ def binopt(data, min_bins=7, max_bins=None, resolution=100):
   delta_f = deltas[best_idx]
   best_score = mises[best_idx]
 
+
   hist, edges = make_hist(data, delta_f, dmin, dmax, diff)
+  middles = (edges[1:] + edges[:-1]) / 2.0
+
   results = { 'bin_size' : delta_f, 'best_score' : best_score,
               'hist' : hist, 'edges' : edges, 'bins' : len(hist),
-              'sizes' : deltas, 'costs' : mises }
+              'middles' : middles, 'sizes' : deltas, 'costs' : mises }
 
   return results

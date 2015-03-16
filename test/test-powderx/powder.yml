@@ -31,7 +31,8 @@ simulation :
   # if the simulated pattern is to be scaled with experimental
   # data, then B should be set to 0 because it will be refined during scaling
   B : 0
-  # apply Lorentz polarization correction (True or False)
+  # apply Lorentz polarization (Lp) correction (True or False)
+  # http://reference.iucr.org/dictionary/Lorentz%E2%80%93polarization_correction
   apply_Lp : True
   # number of points in pattern
   pattern_shells : 200
